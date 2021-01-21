@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.AccountActivityDao">
+
+    <!-- 获取所有类别 -->
+    <select id="getType" resultType="com.sl.idripapp.entity.AccountActivityTypeTree">
+      SELECT id,type_name AS typeName,parent_id AS parentId
+      FROM account_activity_type WHERE project_id=#{project_id}
+    </select>
+
+
+    <!-- 获取列表 -->
+    <select id="getActivityList" resultType="java.util.HashMap">
+        SELECT a.id,a.name,a.organizer,a.begin_time beginTime,a.end_time endTime,a.file,a.file_type fileType,a.file_suffix fileSuffix FROM `account_activity` a
+        WHERE a.project_id=#{project_id} AND a.is_delete=0
+        <if test="name != null and name != ''">
+            and a.name like CONCAT('%',#{name},'%')
+        </if>
+        <if test="begin_time != null and begin_time != ''">
+            and (
+            (a.begin_time <![CDATA[<=]]> #{begin_time} and a.end_time <![CDATA[>=]]> #{begin_time})
+            or
+            (a.begin_time <![CDATA[>=]]> #{begin_time} and a.end_time <![CDATA[<=]]> #{end_time})
+            or
+            (a.begin_time <![CDATA[<=]]> #{end_time} and a.end_time <![CDATA[>=]]> #{end_time})
+            )
+        </if>
+        <if test="type != null">
+            and a.type_id in
+            <foreach collection="type" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        ORDER BY a.create_at DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+
+    <!-- 获取列表总数 -->
+    <select id="getActivityListCount" resultType="java.lang.Integer">
+       SELECT COUNT(*) FROM `account_activity` a
+        WHERE a.project_id=#{project_id} AND a.is_delete=0
+        <if test="name != null and name != ''">
+            and a.name like CONCAT('%',#{name},'%')
+        </if>
+        <if test="begin_time != null and begin_time != ''">
+            and (
+            (a.begin_time <![CDATA[<=]]> #{begin_time} and a.end_time <![CDATA[>=]]> #{begin_time})
+            or
+            (a.begin_time <![CDATA[>=]]> #{begin_time} and a.end_time <![CDATA[<=]]> #{end_time})
+            or
+            (a.begin_time <![CDATA[<=]]> #{end_time} and a.end_time <![CDATA[>=]]> #{end_time})
+            )
+        </if>
+        <if test="type != null">
+            and a.type_id in
+            <foreach collection="type" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+    </select>
+
+
+
+</mapper>

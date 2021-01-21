@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.WebAccountPartsDao">
+
+    <!-- 获取所有类别 -->
+    <select id="getType" resultType="java.util.HashMap">
+       SELECT t.id type_id,t.type_name FROM `account_parts_type` t  WHERE project_id=#{project_id} AND `module`=#{module}
+    </select>
+
+    <!-- 获取配件、工具列表 -->
+    <select id="getPartsList" resultType="java.util.HashMap">
+        SELECT s.id,s.name,s.qr_code,s.type_id,t.type_name,s.amount,s.unit,s.update_time,s.remark FROM `account_parts` s
+        LEFT JOIN `account_parts_type` t ON s.type_id=t.id
+        WHERE s.project_id=#{project_id} AND s.`module`=#{module}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        <if test="type_id != null and type_id != ''">
+            and s.type_id = #{type_id}
+        </if>
+        <if test="begin_time != null and begin_time != ''">
+            and s.update_time <![CDATA[ >= ]]>  #{begin_time}
+        </if>
+        <if test="end_time != null and end_time != ''">
+            and s.update_time <![CDATA[ <= ]]>  CONCAT(#{end_time},' 23:59:59')
+        </if>
+        ORDER BY s.update_time DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+
+    <!-- 获取配件、工具列表总数 -->
+    <select id="getPartsListCount" resultType="java.lang.Integer">
+       SELECT COUNT(*) FROM `account_parts` s
+        LEFT JOIN `account_parts_type` t ON s.type_id=t.id
+        WHERE s.project_id=#{project_id} AND s.`module`=#{module}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        <if test="type_id != null and type_id != ''">
+            and s.type_id = #{type_id}
+        </if>
+        <if test="begin_time != null and begin_time != ''">
+            and s.update_time <![CDATA[ >= ]]>  #{begin_time}
+        </if>
+        <if test="end_time != null and end_time != ''">
+            and s.update_time <![CDATA[ <= ]]>  CONCAT(#{end_time},' 23:59:59')
+        </if>
+    </select>
+
+    <!-- 获取配件、工具数量 -->
+    <select id="getPartsAmount" resultType="java.lang.Integer">
+        SELECT s.amount FROM `account_parts` s WHERE id=#{id}
+    </select>
+
+    <!-- 获取配件、工具数量 -->
+    <select id="getPartsOutAmount" resultType="java.lang.Integer">
+        SELECT s.receive_amount FROM `account_parts_out` s WHERE id=#{id}
+    </select>
+
+    <!-- 获取配件、工具数量 -->
+    <select id="getPartsInAmount" resultType="java.lang.Integer">
+        SELECT s.warehousing_amount FROM `account_parts_in` s WHERE id=#{id}
+    </select>
+
+    <!-- 修改配件、工具-->
+    <update id="outOrInParts">
+        UPDATE `account_parts`
+        <set>
+            <if test="amount!= null">amount=#{amount},</if>
+            update_time= SYSDATE()
+        </set>
+        where
+        id=#{id}
+    </update>
+
+
+
+    <!-- 添加类型-->
+    <insert id="insertType" parameterType="java.util.Map" useGeneratedKeys="true" keyProperty="type_id">
+        INSERT INTO `account_parts_type` (`type_name`, `project_id`)
+        VALUES
+	    (#{type_name}, #{project_id})
+    </insert>
+
+    <!-- 添加配件、工具-->
+    <insert id="insertParts">
+        INSERT INTO `account_parts`
+        (
+        `name`,`qr_code`,`type_id`,`amount`,`unit`,`update_time`,`remark`,`project_id`,`create_at`,`module`)
+        VALUES
+	    (#{name},#{qr_code},#{type_id},#{amount},#{unit},SYSDATE(),#{remark},#{project_id},SYSDATE(),#{module})
+    </insert>
+
+    <!-- 修改配件、工具-->
+    <update id="updateParts">
+        UPDATE `account_parts`
+        <set>
+            <if test="name!= null">`name`= #{name},</if>
+            <if test="qr_code!= null">qr_code= #{qr_code},</if>
+            <if test="type_id!= null">type_id= #{type_id},</if>
+            <if test="amount!= null">amount= #{amount},</if>
+            <if test="unit!= null">unit= #{unit},</if>
+            update_time= SYSDATE(),
+            <if test="remark!= null">remark= #{remark},</if>
+            <if test="module!= null">`module`= #{module}</if>
+        </set>
+        where
+        id=#{id}
+    </update>
+
+
+
+
+
+
+
+
+    <!-- 删除配件、工具-->
+    <delete id="deleteParts">
+        DELETE  FROM  `account_parts`
+        where
+        id IN
+        <foreach collection="list"  item="item" open="(" separator="," close=")" >
+            #{item}
+        </foreach>
+    </delete>
+
+
+
+    <!-- 获取配件、工具列表 -->
+    <select id="getAllParts" resultType="java.util.HashMap">
+        SELECT s.id material_id,s.name,s.qr_code FROM `account_parts` s
+        WHERE s.project_id=#{project_id} AND s.`module`= #{module}
+    </select>
+
+    <!-- 获取配件、工具列表 -->
+    <select id="getPartsOutList" resultType="java.util.HashMap">
+       SELECT so.id,s.id material_id,s.name,s.qr_code,so.destroy_record,so.receive_user,so.receive_time,so.receive_amount,so.examine_user,so.remark FROM `account_parts_out` so
+       INNER JOIN `account_parts` s ON so.material_id=s.id
+       WHERE s.project_id=#{project_id} AND s.`module`= #{module}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        <if test="begin_time != null and begin_time != ''">
+            and so.receive_time <![CDATA[>=]]> #{begin_time}
+        </if>
+        <if test="end_time != null and end_time != ''">
+            and so.receive_time <![CDATA[<=]]>  CONCAT(#{end_time},' 23:59:59')
+        </if>
+        ORDER BY so.receive_time DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+    <!-- 获取配件、工具列表 -->
+    <select id="getPartsOutListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `account_parts_out` so
+        INNER JOIN `account_parts` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id} AND s.`module`= #{module}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        <if test="begin_time != null and begin_time != ''">
+            and so.receive_time <![CDATA[ >= ]]>  #{begin_time}
+        </if>
+        <if test="end_time != null and end_time != ''">
+            and so.receive_time <![CDATA[ <= ]]>  CONCAT(#{end_time},' 23:59:59')
+        </if>
+    </select>
+
+
+    <!-- 添加-->
+    <insert id="insertPartsOut">
+        INSERT INTO `account_parts_out`
+        (
+        `material_id`,`receive_user`,`receive_time`,`receive_amount`,`examine_user`,`remark`,`destroy_record`)
+        VALUES
+	    (#{material_id},#{receive_user},#{receive_time},#{receive_amount},#{examine_user},#{remark},#{destroy_record})
+    </insert>
+
+    <!-- 修改-->
+    <update id="updatePartsOut">
+        UPDATE `account_parts_out`
+        <set>
+            <if test="material_id!= null">`material_id`= #{material_id},</if>
+            <if test="receive_user!= null">receive_user= #{receive_user},</if>
+            <if test="receive_time!= null">receive_time= #{receive_time},</if>
+            <if test="receive_amount!= null">receive_amount= #{receive_amount},</if>
+            <if test="examine_user!= null">examine_user= #{examine_user},</if>
+            <if test="remark!= null">remark= #{remark},</if>
+            <if test="destroy_record!= null">destroy_record= #{destroy_record}</if>
+        </set>
+        where
+        id=#{id}
+    </update>
+
+    <!-- 删除-->
+    <delete id="deletePartsOut">
+        DELETE  FROM  `account_parts_out`
+        where
+        id IN
+        <foreach collection="list"  item="item" open="(" separator="," close=")" >
+            #{item}
+        </foreach>
+    </delete>
+
+
+
+    <!-- 获取入库列表 -->
+    <select id="getPartsInList" resultType="java.util.HashMap">
+        SELECT so.id,s.id material_id,s.name,s.qr_code,so.warehousing_user,so.warehousing_time,so.warehousing_amount,so.examine_user,so.remark FROM `account_parts_in` so
+        INNER JOIN `account_parts` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id} AND s.`module`= #{module}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        <if test="begin_time != null and begin_time != ''">
+            and so.warehousing_time <![CDATA[ >= ]]>  #{begin_time}
+        </if>
+        <if test="end_time != null and end_time != ''">
+            and so.warehousing_time <![CDATA[ <= ]]>  CONCAT(#{end_time},' 23:59:59')
+        </if>
+        ORDER BY so.warehousing_time DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+    <!-- 获取配件、工具列表 -->
+    <select id="getPartsInListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `account_parts_in` so
+        INNER JOIN `account_parts` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id} AND s.`module`= #{module}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        <if test="begin_time != null and begin_time != ''">
+            and so.warehousing_time <![CDATA[ >= ]]>  #{begin_time}
+        </if>
+        <if test="end_time != null and end_time != ''">
+            and so.warehousing_time <![CDATA[ <= ]]>  CONCAT(#{end_time},' 23:59:59')
+        </if>
+    </select>
+
+
+    <!-- 添加-->
+    <insert id="insertPartsIn">
+        INSERT INTO `account_parts_in`
+        (
+        `material_id`,`warehousing_user`,`warehousing_time`,`warehousing_amount`,`examine_user`,`remark`)
+        VALUES
+	    (#{material_id},#{warehousing_user},#{warehousing_time},#{warehousing_amount},#{examine_user},#{remark})
+    </insert>
+
+    <!-- 修改-->
+    <update id="updatePartsIn">
+        UPDATE `account_parts_in`
+        <set>
+            <if test="material_id!= null">`material_id`= #{material_id},</if>
+            <if test="warehousing_user!= null">warehousing_user= #{warehousing_user},</if>
+            <if test="warehousing_time!= null">warehousing_time= #{warehousing_time},</if>
+            <if test="warehousing_amount!= null">warehousing_amount= #{warehousing_amount},</if>
+            <if test="examine_user!= null">examine_user= #{examine_user},</if>
+            <if test="remark!= null">remark= #{remark}</if>
+        </set>
+        where
+        id=#{id}
+    </update>
+
+    <!-- 删除-->
+    <delete id="deletePartsIn">
+        DELETE  FROM  `account_parts_in`
+        where
+        id IN
+        <foreach collection="list"  item="item" open="(" separator="," close=")" >
+            #{item}
+        </foreach>
+    </delete>
+
+
+
+    <!-- 统计 -->
+    <select id="getAddStatistics" resultType="java.util.Map">
+        SELECT COUNT(*) as `count`,substring(create_at,6,2) as `time` FROM account_parts s
+        WHERE s.project_id=#{project_id} AND s.`module`= #{module} AND s.create_at like CONCAT('%',#{year},'%')
+        GROUP BY substring_index(create_at,'-',2)
+    </select>
+    <!-- 统计 -->
+    <select id="getOutStatistics" resultType="java.util.Map">
+        SELECT COUNT(*) as `count`,substring(so.receive_time,6,2) as `time` FROM account_parts_out so
+        INNER JOIN `account_parts` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id} AND s.`module`= #{module} AND so.receive_time like CONCAT('%',#{year},'%')
+        GROUP BY substring_index(so.receive_time,'-',2)
+    </select>
+    <!-- 统计 -->
+    <select id="getInStatistics" resultType="java.util.Map">
+        SELECT COUNT(*) as `count`,substring(so.warehousing_time,6,2)  as `time` FROM account_parts_in so
+        INNER JOIN `account_parts` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id} AND s.`module`= #{module} AND so.warehousing_time like CONCAT('%',#{year},'%')
+        GROUP BY substring_index(so.warehousing_time,'-',2)
+    </select>
+
+
+    <!-- 统计 -->
+    <select id="getOutRanking" resultType="java.util.Map">
+       SELECT s.id,s.`name`,SUM(so.receive_amount) as `amount` FROM account_parts_out so
+        INNER JOIN `account_parts` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id} AND s.`module`= #{module} AND substring_index(so.receive_time,'-',2) = #{date}
+		GROUP BY so.material_id
+		ORDER BY amount DESC
+		LIMIT 0,10
+    </select>
+
+
+    <!-- 统计 -->
+    <select id="getInRanking" resultType="java.util.Map">
+       SELECT s.id,s.`name`,SUM(so.warehousing_amount) as `amount` FROM account_parts_in so
+        INNER JOIN `account_parts` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id} AND s.`module`= #{module} AND substring_index(so.warehousing_time,'-',2) = #{date}
+        AND so.material_id IN
+        <foreach collection="idList"  item="item" open="(" separator="," close=")" >
+            #{item}
+        </foreach>
+		GROUP BY so.material_id
+    </select>
+
+
+</mapper>

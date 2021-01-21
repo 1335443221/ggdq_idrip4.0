@@ -1,0 +1,664 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.ElcmDeviceTaskDao">
+
+    <!-- 获取即将开始任务数量 -->
+    <select id="getAboutToStartCount" resultType="java.lang.Integer">
+       SELECT
+            count( elcm_device_task_record.id ) as count
+        FROM
+            elcm_device_task_record
+            LEFT JOIN elcm_device_task ON elcm_device_task_record.task_id = elcm_device_task.id
+            LEFT JOIN elcm_device_info ON elcm_device_task.device_id = elcm_device_info.id
+        WHERE
+            elcm_device_task_record.`status` = 1
+            AND elcm_device_task_record.`task_status` = 0
+            AND elcm_device_info.project_id=#{project_id}
+            <if test="device_role != 1">
+                AND elcm_device_task.executor_id = #{user_id}
+            </if>
+    </select>
+
+    <!--&lt;!&ndash; 根据任务状态获取任务列表数据 &ndash;&gt;
+    <select id="getTaskList" resultType="java.util.HashMap">
+        SELECT
+            elcm_device_task_record.id AS task_id,
+            elcm_device_info.id AS device_id,
+            elcm_device_info.device_name,
+            elcm_device_task.maintenance_type_id,
+            ( SELECT elcm_maintenance_type.maintenance_type_name FROM elcm_maintenance_type WHERE elcm_maintenance_type.maintenance_type_id = elcm_device_task.maintenance_type_id LIMIT 1 ) AS maintenance_type_name,
+            DATE_FORMAT(elcm_device_task_record.plan_start_time, '%Y年%m月%d日') as plan_start_time,
+            DATE_FORMAT(elcm_device_task_record.plan_end_time, '%Y年%m月%d日 %k:%i:%s') as plan_end_time,
+            DATE_FORMAT(elcm_device_task_record.complete_time, '%Y年%m月%d日 %k:%i:%s') as complete_time,
+            elcm_device_task.executor_id,
+            ( SELECT app_register_user.`name` FROM app_register_user WHERE app_register_user.id = elcm_device_task.executor_id ) AS executor_name,
+            elcm_device_task_record.task_status,
+            elcm_device_task_record.`status`
+        FROM
+            elcm_device_info
+        RIGHT JOIN elcm_device_task ON elcm_device_info.id = elcm_device_task.device_id
+        LEFT JOIN elcm_device_task_record ON elcm_device_task.id = elcm_device_task_record.task_id
+        WHERE elcm_device_info.project_id=#{project_id}
+        <if test="device_role != 1">
+            AND elcm_device_task.executor_id = #{user_id}
+        </if>
+        <if test="task_status !='null' and task_status !='' and task_status !=null">
+            AND elcm_device_task_record.task_status=#{task_status}
+        </if>
+        <if test="status !='null' and status !='' and status !=null and status !=0">
+            AND elcm_device_task_record.status=#{status}
+        </if>
+        <choose>
+            <when test="task_status == 0">
+                order by elcm_device_task_record.plan_start_time
+            </when>
+            <otherwise>
+                order by elcm_device_task_record.complete_time DESC
+            </otherwise>
+        </choose>
+         limit #{fromNum},#{pageSize}
+    </select>-->
+
+
+
+    <!-- 根据任务状态获取任务列表数据 -->
+    <select id="getTaskList" resultType="java.util.HashMap">
+        SELECT * FROM(
+        SELECT r.id,r.record_number odd_number,d.device_name,u.id user_id,u.`name` user_name,r.`status`,s.status_name,
+        t.maintenance_type_id,mt.maintenance_type_name,
+        DATE_FORMAT(r.plan_start_time, '%Y年%m月%d日 %H:%i:%s') as plan_start_time,
+        DATE_FORMAT(r.plan_end_time, '%Y年%m月%d日 %H:%i:%s') as plan_end_time,
+        null as urgency,null as report_time
+        FROM `elcm_device_task_record` r
+        INNER JOIN `elcm_device_task_relation` tr on r.relation_id=tr.id
+        INNER JOIN `elcm_device_info` d on tr.device_id=d.id
+        INNER JOIN `elcm_device_task` t on tr.task_id=t.id
+        INNER JOIN `elcm_device_task_record_status` s on r.`status`=s.`status`
+        LEFT JOIN `user` u on r.user_id=u.id
+        INNER JOIN `elcm_maintenance_type` mt on t.maintenance_type_id=mt.maintenance_type_id
+        WHERE t.project_id=#{project_id}
+        <if test="status !='null' and status !='' and status !=null and status !=0">
+            AND r.`status`=#{status}
+        </if>
+        <if test="maintenance_type_id !='null' and maintenance_type_id !='' and maintenance_type_id !=null and maintenance_type_id !=0">
+            AND t.maintenance_type_id=#{maintenance_type_id}
+        </if>
+        <if test="params != null and params != ''">
+            and ( r.record_number like CONCAT('%',#{params},'%') or d.device_name like CONCAT('%',#{params},'%')  or u.`name` like CONCAT('%',#{params},'%'))
+        </if>
+
+        UNION ALL
+
+        SELECT m.id,m.repair_number odd_number,d.device_name,u.id user_id,u.`name` user_name,m.`repair_status`,s.status_name,
+        3 as maintenance_type_id,'维修' as maintenance_type_name,
+        null as plan_start_time,null as plan_end_time,
+        m.urgency,
+        DATE_FORMAT(m.report_time, '%Y-%m-%d %H:%i:%s') as report_time
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_malfunction_repair_status` s on m.`repair_status`=s.`status`
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        LEFT JOIN `user` u on m.repair_user=u.id
+        WHERE m.repair_number!='' AND m.project_id=#{project_id}
+        <if test="status !='null' and status !='' and status !=null and status !=0">
+            AND m.repair_status=#{status}
+        </if>
+        <if test="maintenance_type_id !='' and maintenance_type_id !=null and maintenance_type_id !=3 and maintenance_type_id !=0">
+            AND m.id=0
+        </if>
+        <if test="params != null and params != ''">
+            and ( m.repair_number like CONCAT('%',#{params},'%') or d.device_name like CONCAT('%',#{params},'%')  or u.`name` like CONCAT('%',#{params},'%'))
+        </if>
+        )t
+        ORDER BY t.`status`,t.odd_number DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+    <!-- 根据任务状态获取任务列表数据->count -->
+    <select id="getTaskListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM(
+        SELECT r.id,r.record_number odd_number,d.device_name,u.id user_id,u.`name` user_name,r.`status`,s.status_name,
+        t.maintenance_type_id,mt.maintenance_type_name,
+        r.plan_start_time,r.plan_end_time,
+        null as urgency,null as report_time
+        FROM `elcm_device_task_record` r
+        INNER JOIN `elcm_device_task_relation` tr on r.relation_id=tr.id
+        INNER JOIN `elcm_device_info` d on tr.device_id=d.id
+        INNER JOIN `elcm_device_task` t on tr.task_id=t.id
+        INNER JOIN `elcm_device_task_record_status` s on r.`status`=s.`status`
+        LEFT JOIN `user` u on r.user_id=u.id
+        INNER JOIN `elcm_maintenance_type` mt on t.maintenance_type_id=mt.maintenance_type_id
+        WHERE t.project_id=#{project_id}
+        <if test="status !='null' and status !='' and status !=null and status !=0">
+            AND r.`status`=#{status}
+        </if>
+        <if test="maintenance_type_id !='null' and maintenance_type_id !='' and maintenance_type_id !=null and maintenance_type_id !=0">
+            AND t.maintenance_type_id=#{maintenance_type_id}
+        </if>
+        <if test="params != null and params != ''">
+            and ( r.record_number like CONCAT('%',#{params},'%') or d.device_name like CONCAT('%',#{params},'%')  or u.`name` like CONCAT('%',#{params},'%'))
+        </if>
+
+        UNION ALL
+
+        SELECT m.id,m.repair_number odd_number,d.device_name,u.id user_id,u.`name` user_name,m.`repair_status`,s.status_name,
+        3 as maintenance_type_id,'维修' as maintenance_type_name,
+        null as plan_start_time,null as plan_end_time,
+        m.urgency,m.report_time
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_malfunction_repair_status` s on m.`repair_status`=s.`status`
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        LEFT JOIN `user` u on m.repair_user=u.id
+        WHERE m.repair_number!='' AND m.project_id=#{project_id}
+        <if test="status !='null' and status !='' and status !=null and status !=0">
+            AND m.repair_status=#{status}
+        </if>
+        <if test="maintenance_type_id !='' and maintenance_type_id !=null and maintenance_type_id !=3 and maintenance_type_id !=0">
+            AND m.id=0
+        </if>
+        <if test="params != null and params != ''">
+            and ( m.repair_number like CONCAT('%',#{params},'%') or d.device_name like CONCAT('%',#{params},'%')  or u.`name` like CONCAT('%',#{params},'%'))
+        </if>
+        )t
+        ORDER BY t.`status`,t.odd_number DESC
+    </select>
+
+
+    <!-- 我的任务 -->
+    <select id="getMyTaskRecordList" resultType="java.util.HashMap">
+        SELECT * FROM(
+        SELECT r.id,r.record_number odd_number,d.device_name,u.id user_id,u.`name` user_name,r.`status`,s.status_name,
+        t.maintenance_type_id,mt.maintenance_type_name,
+        DATE_FORMAT(r.plan_start_time, '%Y年%m月%d日 %H:%i:%s') as plan_start_time,
+        DATE_FORMAT(r.plan_end_time, '%Y年%m月%d日 %H:%i:%s') as plan_end_time,
+        null as urgency,null as report_time
+        FROM `elcm_device_task_record` r
+        INNER JOIN `elcm_device_task_relation` tr on r.relation_id=tr.id
+        INNER JOIN `elcm_device_info` d on tr.device_id=d.id
+        INNER JOIN `elcm_device_task` t on tr.task_id=t.id
+        INNER JOIN `elcm_device_task_record_status` s on r.`status`=s.`status`
+        LEFT JOIN `user` u on r.user_id=u.id
+        INNER JOIN `elcm_maintenance_type` mt on t.maintenance_type_id=mt.maintenance_type_id
+        WHERE t.project_id=#{project_id} AND r.user_id=#{user_id}
+        <if test="status !='null' and status !='' and status !=null and status !=0">
+            AND r.`status`=#{status}
+        </if>
+        <if test="maintenance_type_id !='null' and maintenance_type_id !='' and maintenance_type_id !=null and maintenance_type_id !=0">
+            AND t.maintenance_type_id=#{maintenance_type_id}
+        </if>
+        <if test="params != null and params != ''">
+            and ( r.record_number like CONCAT('%',#{params},'%') or d.device_name like CONCAT('%',#{params},'%')  or u.`name` like CONCAT('%',#{params},'%'))
+        </if>
+
+        UNION ALL
+
+        SELECT m.id,m.repair_number odd_number,d.device_name,u.id user_id,u.`name` user_name,m.`repair_status`,s.status_name,
+        3 as maintenance_type_id,'维修' as maintenance_type_name,
+        null as plan_start_time,null as plan_end_time,
+        m.urgency,
+        DATE_FORMAT(m.report_time, '%Y-%m-%d %H:%i:%s') as report_time
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_malfunction_repair_status` s on m.`repair_status`=s.`status`
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        LEFT JOIN `user` u on m.repair_user=u.id
+        WHERE m.repair_number!='' AND m.project_id=#{project_id}  AND m.repair_user=#{user_id}
+        <if test="status !='null' and status !='' and status !=null and status !=0">
+            AND m.repair_status=#{status}
+        </if>
+        <if test="maintenance_type_id !='' and maintenance_type_id !=null and maintenance_type_id !=3 and maintenance_type_id !=0">
+            AND m.id=0
+        </if>
+        <if test="params != null and params != ''">
+            and ( m.repair_number like CONCAT('%',#{params},'%') or d.device_name like CONCAT('%',#{params},'%')  or u.`name` like CONCAT('%',#{params},'%'))
+        </if>
+        )t
+        ORDER BY t.`status`,t.odd_number DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+    <!-- 我的任务->count -->
+    <select id="getMyTaskRecordListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM(
+        SELECT r.id,r.record_number odd_number,d.device_name,u.id user_id,u.`name` user_name,r.`status`,s.status_name,
+        t.maintenance_type_id,mt.maintenance_type_name,
+        r.plan_start_time,r.plan_end_time,
+        null as urgency,null as report_time
+        FROM `elcm_device_task_record` r
+        INNER JOIN `elcm_device_task_relation` tr on r.relation_id=tr.id
+        INNER JOIN `elcm_device_info` d on tr.device_id=d.id
+        INNER JOIN `elcm_device_task` t on tr.task_id=t.id
+        INNER JOIN `elcm_device_task_record_status` s on r.`status`=s.`status`
+        LEFT JOIN `user` u on r.user_id=u.id
+        INNER JOIN `elcm_maintenance_type` mt on t.maintenance_type_id=mt.maintenance_type_id
+        WHERE t.project_id=#{project_id} AND r.user_id=#{user_id}
+        <if test="status !='null' and status !='' and status !=null and status !=0">
+            AND r.`status`=#{status}
+        </if>
+        <if test="maintenance_type_id !='null' and maintenance_type_id !='' and maintenance_type_id !=null and maintenance_type_id !=0">
+            AND t.maintenance_type_id=#{maintenance_type_id}
+        </if>
+        <if test="params != null and params != ''">
+            and ( r.record_number like CONCAT('%',#{params},'%') or d.device_name like CONCAT('%',#{params},'%')  or u.`name` like CONCAT('%',#{params},'%'))
+        </if>
+
+        UNION ALL
+
+        SELECT m.id,m.repair_number odd_number,d.device_name,u.id user_id,u.`name` user_name,m.`repair_status`,s.status_name,
+        3 as maintenance_type_id,'维修' as maintenance_type_name,
+        null as plan_start_time,null as plan_end_time,
+        m.urgency,m.report_time
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_malfunction_repair_status` s on m.`repair_status`=s.`status`
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        LEFT JOIN `user` u on m.repair_user=u.id
+        WHERE m.repair_number!='' AND  m.project_id=#{project_id}  AND  m.repair_user=#{user_id}
+        <if test="status !='null' and status !='' and status !=null and status !=0">
+            AND m.repair_status=#{status}
+        </if>
+        <if test="maintenance_type_id !='' and maintenance_type_id !=null and maintenance_type_id !=3 and maintenance_type_id !=0">
+            AND m.id=0
+        </if>
+        <if test="params != null and params != ''">
+            and ( m.repair_number like CONCAT('%',#{params},'%') or d.device_name like CONCAT('%',#{params},'%')  or u.`name` like CONCAT('%',#{params},'%'))
+        </if>
+        )t
+        ORDER BY t.`status`,t.odd_number DESC
+    </select>
+
+    <!-- 我的任务->count -->
+    <select id="getMyTaskRecordListTotal" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM(
+        SELECT r.id,r.record_number odd_number,d.device_name,u.id user_id,u.`name` user_name,r.`status`,s.status_name,
+        t.maintenance_type_id,mt.maintenance_type_name,
+        r.plan_start_time,r.plan_end_time,
+        null as urgency,null as report_time
+        FROM `elcm_device_task_record` r
+        INNER JOIN `elcm_device_task_relation` tr on r.relation_id=tr.id
+        INNER JOIN `elcm_device_info` d on tr.device_id=d.id
+        INNER JOIN `elcm_device_task` t on tr.task_id=t.id
+        INNER JOIN `elcm_device_task_record_status` s on r.`status`=s.`status`
+        LEFT JOIN `user` u on r.user_id=u.id
+        INNER JOIN `elcm_maintenance_type` mt on t.maintenance_type_id=mt.maintenance_type_id
+        WHERE t.project_id=#{project_id} AND r.user_id=#{user_id}
+        UNION ALL
+
+        SELECT m.id,m.repair_number odd_number,d.device_name,u.id user_id,u.`name` user_name,m.`repair_status`,s.status_name,
+        3 as maintenance_type_id,'维修' as maintenance_type_name,
+        null as plan_start_time,null as plan_end_time,
+        m.urgency,m.report_time
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_malfunction_repair_status` s on m.`repair_status`=s.`status`
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        LEFT JOIN `user` u on m.repair_user=u.id
+        WHERE m.repair_number!='' AND  m.project_id=#{project_id}  AND  m.repair_user=#{user_id}
+        )t
+        ORDER BY t.`status`,t.odd_number DESC
+    </select>
+
+
+    <!-- 任务状态 -->
+    <select id="getTaskRecordStatus" resultType="java.util.HashMap">
+        SELECT
+           `status`,status_name
+        FROM
+            `elcm_device_task_record_status`
+    </select>
+
+
+
+    <!-- 任务类型 -->
+    <select id="getTaskRecordType" resultType="java.util.HashMap">
+        SELECT
+           `maintenance_type_id`,maintenance_type_name
+        FROM
+            `elcm_maintenance_type`
+            WHERE maintenance_type_id in (1,2,3)
+    </select>
+
+
+
+    <!-- 根据任务id获取单个任务 -->
+    <select id="getTaskById" resultType="java.util.HashMap">
+        SELECT r.id,tk.maintenance_type_id,t.maintenance_type_name,r.record_number,r.`status`,s.status_name,tr.device_id,
+                d.device_name,d.device_number,d.device_model,d.install_position,
+                m.maintain_parts,m.operation_content,m.operation_steps,
+                CONCAT(m.task_work,'小时') as task_work,
+                CONCAT(m.maintain_intervals,m.maintain_intervals_unit) as maintain_intervals,
+                DATE_FORMAT(m.last_maintenance_time, '%Y年%m月%d日 %H:%i:%s') as last_maintenance_time,
+                DATE_FORMAT(r.plan_start_time, '%Y年%m月%d日 %H:%i:%s') as plan_start_time,
+                DATE_FORMAT(r.plan_end_time, '%Y年%m月%d日 %H:%i:%s') as plan_end_time,
+                u.`name` user_name,r.complete_describe,r.complete_url,
+                DATE_FORMAT(r.complete_time, '%Y年%m月%d日 %H:%i:%s') as complete_time,r.user_id,r.original_user_id,tk.task_name
+                FROM `elcm_device_task_record` r
+                INNER JOIN `elcm_device_task_relation` tr on r.relation_id=tr.id
+                INNER JOIN `elcm_device_info` d on tr.device_id=d.id
+                INNER JOIN `elcm_maintain` m on tr.maintain_id=m.id
+                INNER JOIN `elcm_device_task` tk on tr.task_id=tk.id
+                INNER JOIN `elcm_maintenance_type` t on tk.maintenance_type_id=t.maintenance_type_id
+                INNER JOIN `elcm_device_task_record_status` s on r.`status`=s.`status`
+                LEFT JOIN `user` u on r.user_id=u.id
+               WHERE r.id = #{id}
+    </select>
+    <!-- 根据任务id获取单个任务 -->
+    <select id="getTaskByNumber" resultType="java.util.HashMap">
+        SELECT r.id,tk.maintenance_type_id,t.maintenance_type_name,r.record_number,r.`status`,s.status_name,tr.device_id,
+                d.device_name,d.device_number,d.device_model,d.install_position,
+                m.maintain_parts,m.operation_content,m.operation_steps,
+                CONCAT(m.task_work,'小时') as task_work,
+                CONCAT(m.maintain_intervals,m.maintain_intervals_unit) as maintain_intervals,
+                DATE_FORMAT(m.last_maintenance_time, '%Y年%m月%d日 %H:%i:%s') as last_maintenance_time,
+                DATE_FORMAT(r.plan_start_time, '%Y年%m月%d日 %H:%i:%s') as plan_start_time,
+                DATE_FORMAT(r.plan_end_time, '%Y年%m月%d日 %H:%i:%s') as plan_end_time,
+                u.`name` user_name,r.complete_describe,r.complete_url,
+                DATE_FORMAT(r.complete_time, '%Y年%m月%d日 %H:%i:%s') as complete_time,r.user_id,r.original_user_id,tk.task_name
+                FROM `elcm_device_task_record` r
+                INNER JOIN `elcm_device_task_relation` tr on r.relation_id=tr.id
+                INNER JOIN `elcm_device_info` d on tr.device_id=d.id
+                INNER JOIN `elcm_maintain` m on tr.maintain_id=m.id
+                INNER JOIN `elcm_device_task` tk on tr.task_id=tk.id
+                INNER JOIN `elcm_maintenance_type` t on tk.maintenance_type_id=t.maintenance_type_id
+                INNER JOIN `elcm_device_task_record_status` s on r.`status`=s.`status`
+                LEFT JOIN `user` u on r.user_id=u.id
+               WHERE r.project_id = #{project_id} AND r.record_number=#{number}
+    </select>
+
+    <!-- 根据获取维修情况 -->
+    <select id="getRepair" resultType="java.util.HashMap">
+        SELECT m.id,m.repair_number,s.`status`,s.status_name,m.device_id,
+                d.device_name,d.device_model,d.device_number,d.install_position,
+                m.urgency,m.mal_describe,m.mal_url,
+                CASE m.is_repair
+                WHEN '0' THEN '否'
+                WHEN '1' THEN '是'
+                ELSE m.is_repair END is_repair,
+                u.`name` report_user,
+                DATE_FORMAT(m.report_time, '%Y年%m月%d日 %H:%i:%s') as report_time,
+                m.malfunction_number,3 as maintenance_type_id,'维修' as maintenance_type_name,
+                m.repair_url,m.repair_describe,u2.`name` repair_user,
+                DATE_FORMAT(m.repair_time, '%Y年%m月%d日 %H:%i:%s') as repair_time,
+                m.repair_user repair_user_id,m.repair_original_user,
+                DATE_FORMAT(m.assign_time, '%Y年%m月%d日 %H:%i:%s') as assign_time,
+                DATE_FORMAT(m.cancel_time, '%Y-%m-%d %H:%i:%s') as cancel_time,m.cancel_reason,u3.name cancel_user
+                FROM `elcm_malfunction` m
+                INNER JOIN `elcm_device_info` d on m.device_id=d.id
+                LEFT JOIN `elcm_malfunction_repair_status` s on m.`repair_status`=s.`status`
+                LEFT JOIN `user` u on m.report_user=u.id
+                LEFT JOIN `user` u2 on m.repair_user=u2.id
+                LEFT JOIN `user` u3 on m.cancel_user=u3.id
+              where m.id = #{id}
+    </select>
+    <!-- 根据获取维修情况 -->
+    <select id="getRepairByNumber" resultType="java.util.HashMap">
+        SELECT m.id,m.repair_number,s.`status`,s.status_name,m.device_id,
+                d.device_name,d.device_model,d.device_number,d.install_position,
+                m.urgency,m.mal_describe,m.mal_url,
+                CASE m.is_repair
+                WHEN '0' THEN '否'
+                WHEN '1' THEN '是'
+                ELSE m.is_repair END is_repair,
+                u.`name` report_user,
+                DATE_FORMAT(m.report_time, '%Y年%m月%d日 %H:%i:%s') as report_time,
+                m.malfunction_number,3 as maintenance_type_id,'维修' as maintenance_type_name,
+                m.repair_url,m.repair_describe,u2.`name` repair_user,
+                DATE_FORMAT(m.repair_time, '%Y年%m月%d日 %H:%i:%s') as repair_time,
+                m.repair_user repair_user_id,m.repair_original_user,
+                DATE_FORMAT(m.assign_time, '%Y年%m月%d日 %H:%i:%s') as assign_time,
+                DATE_FORMAT(m.cancel_time, '%Y-%m-%d %H:%i:%s') as cancel_time,m.cancel_reason,u3.name cancel_user
+                FROM `elcm_malfunction` m
+                INNER JOIN `elcm_device_info` d on m.device_id=d.id
+                LEFT JOIN `elcm_malfunction_repair_status` s on m.`repair_status`=s.`status`
+                LEFT JOIN `user` u on m.report_user=u.id
+                LEFT JOIN `user` u2 on m.repair_user=u2.id
+                LEFT JOIN `user` u3 on m.cancel_user=u3.id
+              where m.project_id = #{project_id} AND m.repair_number=#{number}
+    </select>
+
+
+    <!-- 修改时间 -->
+    <update id="updateTaskRecord" parameterType="java.util.HashMap">
+        update `elcm_device_task_record`
+        <set>
+            <if test="status != null">status=#{status},</if>
+            <if test="remind_time != null">remind_time=#{remind_time},</if>
+            <if test="start_time != null">plan_start_time=#{start_time},</if>
+            <if test="plan_end_time != null">plan_end_time=#{plan_end_time},</if>
+            <if test="user_id != null">user_id=#{user_id},</if>
+            <if test="original_user_id != null">original_user_id=#{original_user_id},</if>
+            <if test="complete_describe != null">complete_describe=#{complete_describe},</if>
+            <if test="complete_time != null">complete_time=#{complete_time},</if>
+            <if test="complete_url != null">complete_url=#{complete_url}</if>
+        </set>
+        WHERE id =#{id}
+    </update>
+
+    <!-- 修改维修-->
+    <update id="updateRepair" parameterType="java.util.HashMap">
+       update `elcm_malfunction`
+            <set>
+                <if test="repair_user != null">repair_user=#{repair_user},</if>
+                <if test="repair_original_user != null">repair_original_user=#{repair_original_user},</if>
+                <if test="repair_status != null">repair_status=#{repair_status},</if>
+                <if test="assign_time != null">assign_time=#{assign_time},</if>
+                <if test="status != null">status=#{status},</if>
+                <if test="repair_time != null">repair_time=#{repair_time},</if>
+                <if test="complete_url != null">repair_url=#{complete_url},</if>
+                <if test="complete_describe != null">repair_describe=#{complete_describe},</if>
+                <if test="cancel_user != null">cancel_user=#{cancel_user},</if>
+                <if test="cancel_time != null">cancel_time=#{cancel_time},</if>
+                <if test="cancel_reason != null">cancel_reason=#{cancel_reason}</if>
+            </set>
+        WHERE id =#{id}
+    </update>
+
+
+
+    <!-- 退单 -->
+    <update id="chargebackTaskRecord" parameterType="java.util.HashMap">
+        update `elcm_device_task_record`
+        <set>
+            user_id=#{user_id},
+            original_user_id=#{original_user_id},
+            status=#{status}
+        </set>
+        WHERE id =#{id}
+    </update>
+
+    <!-- 退单-->
+    <update id="chargebackRepair" parameterType="java.util.HashMap">
+       update `elcm_malfunction`
+            <set>
+                repair_status=#{repair_status},
+                assign_time=#{assign_time},
+                repair_user=#{repair_user},
+                repair_original_user=#{repair_original_user}
+            </set>
+        WHERE id =#{id}
+    </update>
+
+
+    <!-- 任务完成 -->
+    <update id="completeTask">
+        UPDATE elcm_device_task_record
+        SET complete_describe = #{complete_describe},
+        complete_url = #{complete_url},
+        task_status = 1,
+        status = 0,
+        complete_time = now()
+        WHERE
+            elcm_device_task_record.id = #{task_id}
+    </update>
+
+
+    <!-- 添加维保记录 -->
+    <insert id="insertMaintenanceRecord">
+        INSERT INTO `center`.`elcm_maintenance_record` (`maintenance_type_id`, `device_id`, `user_id`, `create_time`, `desc`, `complete_url`，`odd_number` )
+        VALUES
+	    (#{maintenance_type_id}, #{device_id}, #{user_id}, now(), #{desc}, #{complete_url}, #{odd_number} );
+    </insert>
+
+    <!-- 获取逾期未完成任务数量 -->
+    <select id="getOverdueTaskCount" resultType="java.lang.Integer">
+        SELECT
+            count( elcm_device_task_record.id ) as count
+        FROM
+            elcm_device_task_record
+        LEFT JOIN elcm_device_task ON elcm_device_task_record.task_id = elcm_device_task.id
+        LEFT JOIN elcm_device_info ON elcm_device_task.device_id = elcm_device_info.id
+        WHERE
+            elcm_device_task_record.`task_status` = 0
+        AND elcm_device_info.project_id=#{project_id}
+        AND elcm_device_task_record.`status` = 2
+        <if test="device_role != 1">
+            AND elcm_device_task.executor_id = #{user_id}
+        </if>
+    </select>
+
+    <!-- 获取全部未完成任务数量 -->
+    <select id="getUnFinishedTaskCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM(
+        SELECT r.id,r.record_number odd_number,d.device_name,u.`name` user_name,r.`status`,s.status_name,
+        t.maintenance_type_id,mt.maintenance_type_name,
+        r.plan_start_time,r.plan_end_time,
+        null as urgency,null as report_time
+        FROM `elcm_device_task_record` r
+        INNER JOIN `elcm_device_task_relation` tr on r.relation_id=tr.id
+        INNER JOIN `elcm_device_info` d on tr.device_id=d.id
+        INNER JOIN `elcm_device_task` t on tr.task_id=t.id
+        INNER JOIN `elcm_device_task_record_status` s on r.`status`=s.`status`
+        LEFT JOIN `user` u on r.user_id=u.id
+        INNER JOIN `elcm_maintenance_type` mt on t.maintenance_type_id=mt.maintenance_type_id
+        WHERE  r.project_id=#{project_id}  AND  r.user_id=#{user_id} AND r.`status` in (2,3,4,5)
+        UNION ALL
+        SELECT m.id,m.repair_number odd_number,d.device_name,u.`name` user_name,m.`status`,s.status_name,
+        3 as maintenance_type_id,'维修' as maintenance_type_name,
+        null as plan_start_time,null as plan_end_time,
+        m.urgency,m.report_time
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_malfunction_repair_status` s on m.`status`=s.`status`
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        LEFT JOIN `user` u on m.repair_user=u.id AND m.`repair_status` in (2,3,4,5)
+        WHERE m.repair_number!='' AND m.project_id=#{project_id}  AND m.repair_user=#{user_id}
+        )t
+        ORDER BY t.`status`,t.odd_number DESC
+    </select>
+
+
+
+    <!-- 备件列表 -->
+    <select id="getSparepartList" resultType="java.util.Map">
+        SELECT s.id spareparts_id,s.name spareparts_name,s.number,s.model,s.inventory,s.file_url
+        FROM  `elcm_spareparts` s
+        WHERE s.project_id=#{project_id}
+        <if test="params !='null' and params !='' and params !=null">
+            AND (s.name like CONCAT('%',#{params},'%') or s.number like CONCAT('%',#{params},'%') )
+        </if>
+        limit #{fromNum},#{pageSize}
+    </select>
+
+    <!-- 备件列表 -->
+    <select id="getSparepartListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM  `elcm_spareparts` s
+        WHERE s.project_id=#{project_id}
+        <if test="params !='null' and params !='' and params !=null">
+            AND (s.name like CONCAT('%',#{params},'%') or s.number like CONCAT('%',#{params},'%') )
+        </if>
+    </select>
+
+
+    <!-- 备件申请个数 -->
+    <select id="getSparepartsApplyCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM  `elcm_spareparts_apply` a
+        WHERE a.project_id=#{project_id} AND a.apply_number=#{apply_number} AND a.type_id=#{type_id}
+    </select>
+
+
+    <!-- 备件申请列表 -->
+    <select id="getSparepartApplyList" resultType="java.util.Map">
+        SELECT a.id apply_id,u.`name` apply_user,
+         DATE_FORMAT(a.apply_time, '%Y-%m-%d %H:%i:%s') as apply_time
+        FROM  `elcm_spareparts_apply` a
+        INNER JOIN `user` u on a.apply_user=u.id
+        WHERE a.project_id=#{project_id} AND a.apply_number=#{apply_number} AND a.type_id=#{type_id}
+    </select>
+    <!-- 备件申请详情 -->
+    <select id="getSparepartApplyDetail" resultType="java.util.Map">
+       SELECT s.id spareparts_id,s.name spareparts_name,s.number,s.model,s.inventory,s.file_url,o.amount,o.out_amount
+          FROM  `elcm_spareparts_apply_out` o
+          INNER JOIN `elcm_spareparts` s on o.spareparts_id=s.id
+        WHERE o.apply_id=#{apply_id}
+    </select>
+
+
+    <!-- 备件申请记录新增-->
+    <insert id="addSeparepartsApply" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="apply_id">
+        INSERT INTO `elcm_spareparts_apply`
+            ( `apply_user`, `apply_time`, `type_id`, `apply_number`, `project_id`)
+        VALUES
+            (#{user_id}, now(), #{type_id}, #{apply_number}, #{project_id})
+    </insert>
+
+    <!-- 备件申请备件列表批量添加-->
+    <insert id="addSeparepartsApplyList" parameterType="java.util.HashMap">
+        INSERT INTO `elcm_spareparts_apply_out`
+        ( `spareparts_id`, `amount`, `apply_id`, `out_amount` )
+        VALUES
+        <foreach collection ="sparepartsList" item="map" index= "index" separator =",">
+            (#{map.spareparts_id}, #{map.amount}, #{apply_id}, 0)
+        </foreach >
+    </insert>
+
+
+    <!-- 备件使用新增-->
+    <insert id="addSparepartsUseList" parameterType="java.util.HashMap">
+        INSERT INTO `elcm_spareparts_apply_use`
+        ( `spareparts_id`, `use_amount`, `type_id`, `apply_number` , `project_id`)
+        VALUES
+        <foreach collection ="sparepartsList" item="map" index= "index" separator =",">
+            (#{map.spareparts_id}, #{map.amount},#{type_id}, #{apply_number},#{project_id})
+        </foreach >
+    </insert>
+
+
+    <!-- 备件使用详情 -->
+    <select id="getSparepartUseDetail" resultType="java.util.Map">
+         SELECT a.*,IFNULL(b.use_amount,0) as use_amount FROM
+            (SELECT s.id spareparts_id,s.name spareparts_name,s.number,s.model,s.inventory,s.file_url,SUM(o.amount) as amount,SUM(o.out_amount) as out_amount FROM `elcm_spareparts_apply_out` o
+            INNER JOIN `elcm_spareparts_apply` a  on a.id=o.apply_id
+            INNER JOIN `elcm_spareparts` s  on s.id=o.spareparts_id
+            WHERE a.apply_number = #{oddNumber} AND a.project_id=#{project_id} AND a.type_id=#{type_id}
+            GROUP BY o.spareparts_id)a
+			LEFT JOIN
+			(SELECT u.spareparts_id,SUM(u.use_amount) as use_amount
+             FROM `elcm_spareparts_apply_use` u
+             WHERE u.apply_number = #{oddNumber} AND u.project_id=#{project_id} AND u.type_id=#{type_id}
+              GROUP BY u.spareparts_id
+             )b
+			ON a.spareparts_id=b.spareparts_id
+    </select>
+
+
+    <!-- 备件使用 -->
+    <select id="getSparepartsUseChoice" resultType="java.util.Map">
+       SELECT s.id spareparts_id,s.name spareparts_name,s.number,s.model,s.inventory,s.file_url,SUM(o.amount) as amount,SUM(o.out_amount) as out_amount
+       FROM `elcm_spareparts_apply_out` o
+        INNER JOIN `elcm_spareparts_apply` a  on a.id=o.apply_id
+        INNER JOIN `elcm_spareparts` s  on s.id=o.spareparts_id
+        WHERE a.apply_number = #{oddNumber} AND a.project_id=#{project_id} AND a.type_id=#{type_id}
+        GROUP BY o.spareparts_id
+    </select>
+
+
+    <!-- 审批详情 -->
+    <select id="getApproval" resultType="java.util.HashMap">
+        SELECT a.id approval_id,a.odd_number,a.type_id,t.type_name,a.approval_name,u.name user_name,a.apply_at,a.`status`,s.status_name
+        FROM `elcm_approval` a
+        INNER JOIN `elcm_approval_type` t on a.type_id=t.id
+        INNER JOIN `elcm_approval_status` s on a.`status`=s.`status`
+        LEFT JOIN `user` u on a.apply_by=u.id
+        WHERE a.odd_number=#{odd_number} AND a.project_id=#{project_id}  AND a.type_id=#{type_id}
+    </select>
+
+
+</mapper>

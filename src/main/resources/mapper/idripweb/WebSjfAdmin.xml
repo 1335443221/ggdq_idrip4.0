@@ -1,0 +1,724 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.WebSjfAdminDao">
+
+    <!-- 园区列表 -->
+    <select id="getFactoryList" resultType="java.util.HashMap">
+        SELECT f.id factory_id,f.factory_name FROM `project_factory` f
+        where f.project_id=#{project_id}
+        <if test="factory_id != null and factory_id != ''">
+        and f.id = #{factory_id}
+        </if>
+    </select>
+
+    <!-- 收缴费楼 -->
+    <select id="getBuildingList" resultType="java.util.HashMap">
+        SELECT b.id building_id,b.category_name building_name FROM `common_project_category_relation` b
+		WHERE b.parent_category_id in(
+		SELECT c.id FROM `common_project_category_relation` c
+        INNER JOIN `common_category_factory_relation` f on c.parent_category_id=f.category_id
+		WHERE f.factory_id=#{factory_id}
+		)
+    </select>
+    <!-- 电表列表 -->
+    <select id="getElecMeterList" resultType="java.util.HashMap">
+        SELECT h.id house_id,h.elec_meter_number,h.house_number,h.building_id,c.category_name building_name,h.factory_id,f.factory_name,h.remark FROM `sjf_house` h
+        LEFT JOIN `common_project_category_relation` c on h.building_id=c.id
+        LEFT JOIN `project_factory` f on h.factory_id=f.id
+        WHERE h.project_id=#{project_id}
+        <if test="factory_id != null and factory_id != ''">
+            and h.factory_id = #{factory_id}
+        </if>
+        <if test="building_id != null and building_id != ''">
+            and h.building_id = #{building_id}
+        </if>
+        <if test="house_number != null and house_number != ''">
+            and h.house_number like CONCAT('%',#{house_number},'%')
+        </if>
+        <if test="elec_meter_number != null and elec_meter_number != ''">
+            and h.elec_meter_number like CONCAT('%',#{elec_meter_number},'%')
+        </if>
+        ORDER BY h.id DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+    <select id="getElecMeterListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `sjf_house` h
+        LEFT JOIN `common_project_category_relation` c on h.building_id=c.id
+        LEFT JOIN `project_factory` f on h.factory_id=f.id
+        WHERE h.project_id=#{project_id}
+        <if test="factory_id != null and factory_id != ''">
+            and h.factory_id = #{factory_id}
+        </if>
+        <if test="building_id != null and building_id != ''">
+            and h.building_id = #{building_id}
+        </if>
+        <if test="house_number != null and house_number != ''">
+            and h.house_number like CONCAT('%',#{house_number},'%')
+        </if>
+        <if test="elec_meter_number != null and elec_meter_number != ''">
+            and h.elec_meter_number like CONCAT('%',#{elec_meter_number},'%')
+        </if>
+    </select>
+
+
+
+    <select id="getElecMeterListCount2" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `sjf_house` h
+        LEFT JOIN `common_project_category_relation` c on h.building_id=c.id
+        LEFT JOIN `project_factory` f on h.factory_id=f.id
+        WHERE h.project_id=#{project_id}
+        <if test="factory_id != null and factory_id != ''">
+            and h.factory_id = #{factory_id}
+        </if>
+        <if test="building_id != null and building_id != ''">
+            and h.building_id = #{building_id}
+        </if>
+        <if test="house_number != null and house_number != ''">
+            and h.house_number  = #{house_number}
+        </if>
+        <if test="elec_meter_number != null and elec_meter_number != ''">
+            and h.elec_meter_number = #{elec_meter_number}
+        </if>
+    </select>
+
+    <insert id="addMeter" parameterType="java.util.HashMap">
+        insert into `sjf_house`
+        (house_number,elec_meter_number,project_id,factory_id,building_id,elec_meter_id,remark)
+        values
+        <foreach collection ="list" item="map" index= "index" separator =",">
+            (
+            #{map.house_number},
+            #{map.elec_meter_number},
+            #{map.project_id},
+            #{map.factory_id},
+            #{map.building_id},
+            #{map.elec_meter_id},
+            #{map.remark}
+            )
+        </foreach >
+    </insert>
+
+    <select id="getMeter" resultType="java.util.HashMap">
+        SELECT h.id house_id,h.elec_meter_number,h.house_number,h.building_id,c.category_name building_name,h.factory_id,f.factory_name,h.remark FROM `sjf_house` h
+        LEFT JOIN `common_project_category_relation` c on h.building_id=c.id
+        LEFT JOIN `project_factory` f on h.factory_id=f.id
+        WHERE h.id= #{house_id}
+    </select>
+    <select id="getAllMeterNumber" resultType="java.lang.String">
+        SELECT h.elec_meter_number FROM `sjf_house` h
+        WHERE h.project_id= #{project_id}
+    </select>
+
+    <delete id="deleteMeter">
+		delete from `sjf_house`
+		WHERE id = #{house_id}
+	</delete>
+
+    <update id="updateMeter" parameterType="java.util.HashMap">
+        update `sjf_house`
+        <set>
+            <if test="house_number != null">house_number=#{house_number,jdbcType=VARCHAR},</if>
+            <if test="elec_meter_number != null">elec_meter_number=#{elec_meter_number,jdbcType=VARCHAR},</if>
+            <if test="factory_id != null">factory_id=#{factory_id,jdbcType=INTEGER},</if>
+            <if test="building_id != null">building_id=#{building_id,jdbcType=INTEGER},</if>
+            <if test="elec_meter_id != null">elec_meter_id=#{elec_meter_id,jdbcType=INTEGER},</if>
+            <if test="remark != null">remark=#{remark,jdbcType=VARCHAR},</if>
+        </set>
+        where id=#{house_id}
+    </update>
+
+    <select id="houseType" resultType="java.util.HashMap">
+      SELECT t.id type_id,t.type_name FROM `sjf_house_type_now` t
+      WHERE t.project_id=#{project_id}
+    </select>
+
+    <select id="getHouseList" resultType="java.util.HashMap">
+        SELECT h.id house_id,h.house_name,h.contact,h.phone,h.elec_meter_id,h.elec_meter_number,f.factory_name,b.category_name building_name,h.house_number,
+        h.check_in_time,h.check_in_ep,h.cumulative_amount,t.charge_type,t.parity_price,t.peak_price,t.plain_price,
+        t.valley_price,t.second_price,t.third_price,m.tg_id,m.device_name,h.type_id,t.type_name
+        FROM `sjf_house` h
+        LEFT JOIN `common_project_category_relation` b on h.building_id=b.id
+        LEFT JOIN `project_factory` f on h.factory_id=f.id
+        LEFT JOIN `sjf_house_type_now` t on h.type_id=t.id
+        LEFT JOIN `elec_meter` m on h.elec_meter_id=m.id
+        WHERE h.is_check_in=1
+        <if test="project_id != null and project_id !=''">
+            and h.project_id=#{project_id}
+        </if>
+        <if test="type_id != null and type_id !=''">
+            and h.type_id=#{type_id}
+        </if>
+        <if test="factory_id != null and factory_id !=''">
+            and h.factory_id=#{factory_id}
+        </if>
+        <if test="building_id != null and building_id !=''">
+            and h.building_id=#{building_id}
+        </if>
+        <if test="house_number != null and house_number !=''">
+            and h.house_number like CONCAT('%',#{house_number},'%')
+        </if>
+        <if test="elec_meter_number != null and elec_meter_number !=''">
+            and h.elec_meter_number like CONCAT('%',#{elec_meter_number},'%')
+        </if>
+        <if test="house_name != null and house_name !=''">
+            and h.house_name like CONCAT('%',#{house_name},'%')
+        </if>
+        ORDER BY h.check_in_time DESC
+        LIMIT ${fromNum},${pageSize}
+
+    </select>
+
+    <select id="getHouseListCount" resultType="java.lang.Integer">
+        SELECT count(*)
+        FROM `sjf_house` h
+        LEFT JOIN `common_project_category_relation` b on h.building_id=b.id
+        LEFT JOIN `project_factory` f on h.factory_id=f.id
+        LEFT JOIN `sjf_house_type_now` t on h.type_id=t.id
+        LEFT JOIN `elec_meter` m on h.elec_meter_id=m.id
+        WHERE h.is_check_in=1
+        <if test="project_id != null and project_id !=''">
+            and h.project_id=#{project_id}
+        </if>
+        <if test="type_id != null and type_id !=''">
+            and h.type_id=#{type_id}
+        </if>
+        <if test="factory_id != null and factory_id !=''">
+            and h.factory_id=#{factory_id}
+        </if>
+        <if test="building_id != null and building_id !=''">
+            and h.building_id=#{building_id}
+        </if>
+        <if test="house_number != null and house_number !=''">
+            and h.house_number like CONCAT('%',#{house_number},'%')
+        </if>
+        <if test="elec_meter_number != null and elec_meter_number !=''">
+            and h.elec_meter_number like CONCAT('%',#{elec_meter_number},'%')
+        </if>
+        <if test="house_name != null and house_name !=''">
+            and h.house_name like CONCAT('%',#{house_name},'%')
+        </if>
+        ORDER BY h.check_in_time DESC
+    </select>
+
+
+    <!-- 获取电表的区间ep-->
+    <select id="getEpListByList" resultType="java.util.HashMap">
+        SELECT meter_id,ROUND(SUM(power),2) as ep FROM `day_data_ep` ep
+        WHERE  ep.date	BETWEEN #{begin_time} AND #{end_time}
+        and ep.meter_id in
+        <foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+            #{list.elec_meter_id}
+        </foreach>
+        GROUP BY meter_id
+    </select>
+    <!-- 获取电表的区间缴费金额-->
+    <select id="getPaymentListByList" resultType="java.util.HashMap">
+        SELECT house_id,ROUND(SUM(ABS(amount)),2) as amount FROM `sjf_payment_record_house` pr
+        WHERE  pr.create_at	BETWEEN #{begin_time} AND #{end_time}
+        AND pr.pay_type !='补加电费'
+        and pr.house_id in
+        <foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+            #{list.house_id}
+        </foreach>
+        GROUP BY house_id
+    </select>
+
+
+    <select id="getHouseByNumber" resultType="java.util.HashMap">
+        SELECT * FROM `sjf_house` h
+        WHERE 1=1
+        and h.elec_meter_number=#{elec_meter_number}
+    </select>
+
+
+
+
+
+
+    <update id="updateHouse" parameterType="java.util.HashMap">
+        update `sjf_house`
+        <set>
+            <if test="house_name != null">house_name=#{house_name,jdbcType=VARCHAR},</if>
+            <if test="type_id != null and type_id !=''">type_id=#{type_id,jdbcType=INTEGER},</if>
+            <if test="contact != null">contact=#{contact,jdbcType=VARCHAR},</if>
+            <if test="supplement_amount != null">supplement_amount=#{supplement_amount,jdbcType=VARCHAR},</if>
+            <if test="phone != null">phone=#{phone,jdbcType=VARCHAR},</if>
+            <if test="check_in_time != null">check_in_time=#{check_in_time},</if>
+            <if test="check_in_ep != null">check_in_ep=#{check_in_ep},</if>
+            <if test="cumulative_amount != null">cumulative_amount=#{cumulative_amount},</if>
+            <if test="purchase_power_time != null">purchase_power_time=#{purchase_power_time},</if>
+            <if test="is_check_in != null">is_check_in=#{is_check_in}</if>
+        </set>
+            where id=#{house_id}
+    </update>
+
+
+    <update id="updateHouseByMeter" parameterType="java.util.HashMap">
+        update `sjf_house`
+        <set>
+            <if test="house_name != null">house_name=#{house_name,jdbcType=VARCHAR},</if>
+            <if test="type_id != null and type_id !=''">type_id=#{type_id,jdbcType=INTEGER},</if>
+            <if test="contact != null">contact=#{contact,jdbcType=VARCHAR},</if>
+            <if test="supplement_amount != null">supplement_amount=#{supplement_amount,jdbcType=VARCHAR},</if>
+            <if test="phone != null">phone=#{phone,jdbcType=VARCHAR},</if>
+            <if test="check_in_time != null">check_in_time=#{check_in_time},</if>
+            <if test="check_in_ep != null">check_in_ep=#{check_in_ep},</if>
+            <if test="cumulative_amount != null">cumulative_amount=#{cumulative_amount},</if>
+            <if test="purchase_power_time != null">purchase_power_time=#{purchase_power_time},</if>
+            <if test="is_check_in != null">is_check_in=#{is_check_in}</if>
+        </set>
+          where elec_meter_number=#{elec_meter_number}
+    </update>
+
+
+    <update id="updateElecEpToday" parameterType="java.util.HashMap">
+        update `day_data_ep_peak_plain_valley`
+        <set>
+            <if test="peak != null">peak=#{peak},</if>
+            <if test="plain != null">plain=#{plain},</if>
+            <if test="valley != null">valley=#{valley},</if>
+            <if test="power != null">power=#{power}</if>
+        </set>
+        where meter_id=#{meter_id} and `date`=#{date}
+    </update>
+
+    <delete id="deleteSjfData" parameterType="java.util.HashMap">
+        delete from `sjf_house_day_ep_fees`
+        WHERE `date`=#{date} AND house_id =#{house_id}
+    </delete>
+
+    <select id="getHouse" resultType="java.util.HashMap">
+        SELECT h.id house_id,h.house_name,h.contact,h.phone,h.elec_meter_number,h.house_number,h.factory_id,f.factory_name,
+        h.building_id,b.category_name building_name,h.supplement_amount,h.type_id,t.type_name,h.elec_meter_id,h.check_in_time,h.check_in_ep,h.is_check_in,
+        h.cumulative_amount,t.charge_type,t.parity_price,t.peak_price,t.plain_price,t.valley_price,t.second_price,t.third_price,
+        m.tg_id,m.device_name
+        FROM `sjf_house` h
+        LEFT JOIN `common_project_category_relation` b on h.building_id=b.id
+        LEFT JOIN `sjf_house_type_now` t on h.type_id=t.id
+		LEFT JOIN `project_factory` f on h.factory_id=f.id
+        LEFT JOIN `elec_meter` m on h.elec_meter_id=m.id
+      WHERE h.id=#{house_id}
+    </select>
+
+
+
+    <select id="getLastPaymentRecord" resultType="java.util.HashMap">
+        SELECT p.house_id,p.pay_type,abs(p.amount) as amount,p.create_at
+        FROM `sjf_payment_record_house` p
+        WHERE p.house_id=#{house_id}
+        Order by p.create_at DESC
+        Limit 1
+    </select>
+
+    <!-- 获取分户区间用电量和钱 -->
+    <select id="getHouseEpFees" resultType="java.util.HashMap">
+        SELECT sum(peak_ep) as peakEp,sum(plain_ep) as plain_ep,sum(valley_ep) as valley_ep,
+        sum(first_ep) as first_ep,sum(second_ep) as second_ep,sum(third_ep) as third_ep,
+        sum(total_power) as total_power FROM `sjf_house_day_ep_fees` ep
+        WHERE 1=1
+        <if test="house_id != null and house_id !=''">
+            and ep.house_id=#{house_id}
+        </if>
+        <if test="begin_time != null and end_time !=''">
+            AND ep.date BETWEEN #{begin_time} AND #{end_time}
+        </if>
+    </select>
+
+
+    <select id="getHouseTemplate" resultType="java.util.HashMap">
+        SELECT h.elec_meter_number,f.factory_name,b.category_name building_name,h.house_number
+        FROM `sjf_house` h
+        LEFT JOIN `common_project_category_relation` b on h.building_id=b.id
+		LEFT JOIN `project_factory` f on h.factory_id=f.id
+        WHERE h.project_id=#{project_id}
+        AND h.is_check_in=0
+    </select>
+
+    <select id="getHouseNumber" resultType="java.util.HashMap">
+        SELECT h.id house_id,h.house_number,h.elec_meter_number
+        FROM `sjf_house` h
+        WHERE h.project_id=#{project_id}
+        <if test="is_check_in != null and is_check_in !=''">
+            and h.is_check_in=#{is_check_in}
+        </if>
+        <if test="factory_id != null and factory_id !=''">
+            and h.factory_id=#{factory_id}
+        </if>
+        <if test="building_id != null and building_id !=''">
+            and h.building_id=#{building_id}
+        </if>
+        <if test="house_number != null and house_number !=''">
+            and h.house_number like CONCAT('%',#{house_number},'%')
+        </if>
+    </select>
+
+    <select id="getAllBuildingHouse" resultType="java.util.HashMap">
+        SELECT h.id house_id,h.house_number,h.building_id,b.category_name building_name,h.factory_id,f.factory_name,h.elec_meter_number
+        FROM `sjf_house` h
+        LEFT JOIN `common_project_category_relation` b on h.building_id=b.id
+        LEFT JOIN `project_factory` f on h.factory_id=f.id
+        WHERE h.project_id=#{project_id}
+    </select>
+
+
+    <select id="getPaymentRecord" resultType="java.util.HashMap">
+        SELECT p.house_name,h.elec_meter_number,concat(f.factory_name,"-",b.category_name,"-",h.house_number) address,p.pay_type,p.create_at,abs(p.amount) as amount,p.pay_state,p.odd_number FROM `sjf_payment_record_house` p
+        INNER JOIN `sjf_house` h ON p.house_id=h.id
+        LEFT JOIN `common_project_category_relation` b on h.building_id=b.id
+        LEFT JOIN `project_factory` f on h.factory_id=f.id
+        WHERE h.project_id=#{project_id}
+        <if test="factory_id != null and factory_id !=''">
+            and h.factory_id=#{factory_id}
+        </if>
+        <if test="building_id != null and building_id !=''">
+            and h.building_id=#{building_id}
+        </if>
+        <if test="house_name != null and house_name !=''">
+            and p.house_name like CONCAT('%',#{house_name},'%')
+        </if>
+        <if test="elec_meter_number != null and elec_meter_number !=''">
+            and h.elec_meter_number like CONCAT('%',#{elec_meter_number},'%')
+        </if>
+        <if test="pay_type != null and pay_type !=''">
+            and p.pay_type=#{pay_type}
+        </if>
+        <if test="begin_time != null and begin_time !='' and end_time !=null and end_time !=''">
+            and p.create_at between #{begin_time} and #{end_time}
+        </if>
+        ORDER BY p.create_at DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <select id="getAllPaymentRecord" resultType="java.util.HashMap">
+        SELECT p.house_name,h.elec_meter_number,concat(f.factory_name,"-",b.category_name,"-",h.house_number) address,p.pay_type,p.create_at,abs(p.amount) as amount,p.pay_state,p.odd_number FROM `sjf_payment_record_house` p
+        INNER JOIN `sjf_house` h ON p.house_id=h.id
+        LEFT JOIN `common_project_category_relation` b on h.building_id=b.id
+        LEFT JOIN `project_factory` f on h.factory_id=f.id
+        WHERE h.project_id=#{project_id}
+        <if test="factory_id != null and factory_id !=''">
+            and h.factory_id=#{factory_id}
+        </if>
+        <if test="building_id != null and building_id !=''">
+            and h.building_id=#{building_id}
+        </if>
+        <if test="house_name != null and house_name !=''">
+            and p.house_name like CONCAT('%',#{house_name},'%')
+        </if>
+        <if test="elec_meter_number != null and elec_meter_number !=''">
+            and h.elec_meter_number like CONCAT('%',#{elec_meter_number},'%')
+        </if>
+        <if test="pay_type != null and pay_type !=''">
+            and p.pay_type=#{pay_type}
+        </if>
+        <if test="begin_time != null and begin_time !='' and end_time !=null and end_time !=''">
+            and p.create_at between #{begin_time} and #{end_time}
+        </if>
+        ORDER BY p.create_at DESC
+    </select>
+
+
+    <select id="getPaymentRecordCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `sjf_payment_record_house` p
+        INNER JOIN `sjf_house` h ON p.house_id=h.id
+        LEFT JOIN `common_project_category_relation` b on h.building_id=b.id
+        LEFT JOIN `project_factory` f on h.factory_id=f.id
+        WHERE h.project_id=#{project_id}
+        <if test="factory_id != null and factory_id !=''">
+            and h.factory_id=#{factory_id}
+        </if>
+        <if test="building_id != null and building_id !=''">
+            and h.building_id=#{building_id}
+        </if>
+        <if test="house_name != null and house_name !=''">
+            and p.house_name like CONCAT('%',#{house_name},'%')
+        </if>
+        <if test="elec_meter_number != null and elec_meter_number !=''">
+            and h.elec_meter_number like CONCAT('%',#{elec_meter_number},'%')
+        </if>
+        <if test="pay_type != null and pay_type !=''">
+            and p.pay_type=#{pay_type}
+        </if>
+        <if test="begin_time != null and begin_time !='' and end_time !=null and end_time !=''">
+            and p.create_at between #{begin_time} and #{end_time}
+        </if>
+    </select>
+
+    <update id="deleteHouse" parameterType="java.util.HashMap">
+        UPDATE `sjf_house`
+            SET house_name = NULL,
+            type_id = NULL,
+            contact = NULL,
+            phone = NULL,
+            check_in_time = NULL,
+            is_check_in = 0
+        WHERE
+            id = #{house_id}
+    </update>
+
+
+    <select id="downloadPaymentData" resultType="java.util.HashMap">
+        SELECT p.house_name,h.elec_meter_number,concat(f.factory_name,"-",b.category_name,"-",h.house_number) address,p.pay_type,p.create_at,abs(p.amount) as amount,p.pay_state,p.odd_number FROM `sjf_payment_record_house` p
+        INNER JOIN `sjf_house` h ON p.house_id=h.id
+        LEFT JOIN `common_project_category_relation` b on h.building_id=b.id
+        LEFT JOIN `project_factory` f on h.factory_id=f.id
+        WHERE h.project_id=#{project_id}
+        <if test="factory_id != null and factory_id !=''">
+            and h.factory_id=#{factory_id}
+        </if>
+        <if test="building_id != null and building_id !=''">
+            and h.building_id=#{building_id}
+        </if>
+        <if test="house_name != null and house_name !=''">
+            and h.house_name like CONCAT('%',#{house_name},'%')
+        </if>
+        <if test="elec_meter_number != null and elec_meter_number !=''">
+            and h.elec_meter_number like CONCAT('%',#{elec_meter_number},'%')
+        </if>
+        <if test="pay_type != null and pay_type !=''">
+            and p.pay_type=#{pay_type}
+        </if>
+        <if test="begin_time != null and begin_time !='' and end_time !=null and end_time !=''">
+            and p.create_at between #{begin_time} and #{end_time}
+        </if>
+    </select>
+
+
+
+    <select id="getAllTypeList" resultType="java.util.HashMap">
+        SELECT * FROM (
+            SELECT t.id type_id,t.type_name,t.charge_type,'使用中' as set_time,'1' as is_used,t.parity_price,t.peak_price,t.plain_price,
+            t.valley_price,t.second_price,t.third_price  FROM sjf_house_type_now t WHERE t.project_id=#{project_id}
+            <if test="type_id != null and type_id !=''">
+                AND t.id=#{type_id}
+            </if>
+            UNION ALL
+            SELECT * FROM(
+            SELECT f.type_id,t.type_name,f.charge_type,f.set_time,'0' as is_used,f.parity_price,f.peak_price,f.plain_price,f.valley_price,f.second_price,f.third_price  FROM sjf_house_type_history_future f
+            INNER JOIN `sjf_house_type_now` t ON f.type_id=t.id  WHERE t.project_id=#{project_id} AND f.set_time &gt; #{date}
+            <if test="type_id != null and type_id !=''">
+                AND f.type_id=#{type_id}
+            </if>
+            ORDER BY f.create_at DESC
+            )ff
+            GROUP BY ff.type_id
+        )tf
+        ORDER BY tf.type_id
+        LIMIT ${fromNum},${pageSize}
+    </select>
+    <select id="getAllTypeListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)  FROM (
+        SELECT t.id type_id,t.type_name,t.charge_type,'使用中' as set_time,'1' as is_used,t.parity_price,t.peak_price,t.plain_price,
+        t.valley_price,t.second_price,t.third_price  FROM sjf_house_type_now t WHERE t.project_id=#{project_id}
+        <if test="type_id != null and type_id !=''">
+            AND t.id=#{type_id}
+        </if>
+        UNION ALL
+        SELECT * FROM(
+        SELECT f.type_id,t.type_name,f.charge_type,f.set_time,'0' as is_used,f.parity_price,f.peak_price,f.plain_price,f.valley_price,f.second_price,f.third_price  FROM sjf_house_type_history_future f
+        INNER JOIN `sjf_house_type_now` t ON f.type_id=t.id  WHERE t.project_id=#{project_id} AND f.set_time &gt; #{date}
+        <if test="type_id != null and type_id !=''">
+            AND f.type_id=#{type_id}
+        </if>
+        ORDER BY f.create_at DESC
+        )ff
+        GROUP BY ff.type_id
+        )tf
+        ORDER BY tf.type_id
+    </select>
+
+
+    <!-- 收费单位 -->
+    <select id="getChargeUnit" resultType="java.util.HashMap">
+       SELECT u.id unit_id,u.unit_name,u.logo,u.public_account_number FROM `sjf_charge_unit` u
+        where u.project_id=#{project_id}
+    </select>
+
+
+    <!-- 获取电费设置信息 -->
+    <select id="getHouseTypeByType" resultType="java.util.HashMap">
+        SELECT t.id type_id,t.type_name,t.charge_type,t.parity_price,t.peak_price,t.plain_price,t.valley_price,t.second_price,t.third_price
+        FROM `sjf_house_type_now` t
+        WHERE t.project_id=#{project_id}
+        <if test="type_id != null">
+            AND t.id=#{type_id}
+        </if>
+        <if test="type_name != null">
+            AND t.type_name=#{type_name}
+        </if>
+    </select>
+
+    <!-- 获取电表编号 -->
+    <select id="getElecMeterNumber" resultType="java.util.HashMap">
+        SELECT h.elec_meter_number,h.is_check_in FROM `sjf_house` h
+        WHERE h.project_id=#{project_id} AND h.building_id=#{building_id} AND h.house_number=#{house_number}
+    </select>
+
+    <!-- 新增电费设置 -->
+    <insert id="addHouseType" parameterType="java.util.HashMap">
+        insert into `sjf_house_type_now`
+        (type_name,project_id,charge_type,parity_price,peak_price,plain_price,valley_price,second_price,third_price,set_time)
+        values
+        (
+        #{type_name},
+        #{project_id},
+        #{charge_type},
+        <choose>
+            <when test="parity_price != null and parity_price != ''">#{parity_price},</when>
+            <otherwise>0,</otherwise>
+        </choose>
+        <choose>
+            <when test="peak_price != null and peak_price != ''">#{peak_price},</when>
+            <otherwise>0,</otherwise>
+        </choose>
+        <choose>
+            <when test="plain_price != null and plain_price != ''">#{plain_price},</when>
+            <otherwise>0,</otherwise>
+        </choose>
+        <choose>
+            <when test="valley_price != null and valley_price != ''">#{valley_price},</when>
+            <otherwise>0,</otherwise>
+        </choose>
+        <choose>
+            <when test="second_price != null and second_price != ''">#{second_price},</when>
+            <otherwise>0,</otherwise>
+        </choose>
+        <choose>
+            <when test="third_price != null and third_price != ''">#{third_price},</when>
+            <otherwise>0,</otherwise>
+        </choose>
+        #{set_time}
+        )
+    </insert>
+
+
+    <update id="updateHouseType" parameterType="java.util.HashMap">
+        update `sjf_house_type_now`
+        <set>
+            <if test="type_name != null">type_name=#{type_name}</if>
+        </set>
+        where id=#{type_id}
+    </update>
+
+    <!-- 新增电费设置 待生效-->
+    <insert id="addHouseTypeFuture" parameterType="java.util.HashMap">
+        insert into `sjf_house_type_history_future`
+        (type_id,charge_type,parity_price,peak_price,plain_price,valley_price,second_price,third_price,set_time,create_at,create_by)
+        values
+        (
+        #{type_id},
+        #{charge_type},
+        <choose>
+            <when test="parity_price != null and parity_price != ''">#{parity_price},</when>
+            <otherwise>0,</otherwise>
+        </choose>
+        <choose>
+            <when test="peak_price != null and peak_price != ''">#{peak_price},</when>
+            <otherwise>0,</otherwise>
+        </choose>
+        <choose>
+            <when test="plain_price != null and plain_price != ''">#{plain_price},</when>
+            <otherwise>0,</otherwise>
+        </choose>
+        <choose>
+            <when test="valley_price != null and valley_price != ''">#{valley_price},</when>
+            <otherwise>0,</otherwise>
+        </choose>
+        <choose>
+            <when test="second_price != null and second_price != ''">#{second_price},</when>
+            <otherwise>0,</otherwise>
+        </choose>
+        <choose>
+            <when test="third_price != null and third_price != ''">#{third_price},</when>
+            <otherwise>0,</otherwise>
+        </choose>
+        #{set_time},
+        SYSDATE(),
+        #{user_name}
+        )
+    </insert>
+
+
+
+    <!-- 获取峰平谷信息 -->
+    <select id="getFpg" resultType="java.util.HashMap">
+        SELECT f.peak,f.plain,f.valley FROM `sjf_charge_fpg_now` f
+        WHERE f.project_id=#{project_id}
+    </select>
+    <!-- 获取-->
+    <select id="getFpgFuture" resultType="java.util.HashMap">
+         SELECT f.peak,f.plain,f.valley,f.set_time FROM `sjf_charge_fpg_history_future` f
+	     WHERE f.project_id=#{project_id} AND f.set_time &gt; #{now_time}
+	     ORDER BY f.create_at DESC
+	     LIMIT 1
+    </select>
+    <!-- 获取阶梯信息 -->
+    <select id="getLadder" resultType="java.util.HashMap">
+        SELECT l.first_ladder,l.second_ladder FROM `sjf_charge_ladder_now` l
+        WHERE l.project_id=#{project_id}
+    </select>
+    <!-- 查看未生效-->
+    <select id="getLadderFuture" resultType="java.util.HashMap">
+         SELECT l.first_ladder,l.second_ladder,l.set_time FROM `sjf_charge_ladder_history_future` l
+	     WHERE l.project_id=#{project_id} AND l.set_time &gt; #{now_time}
+	     ORDER BY l.create_at DESC
+	     LIMIT 1
+    </select>
+
+    <!-- 新增电费设置 待生效-->
+    <insert id="addFpgFutrue" parameterType="java.util.HashMap">
+        insert into `sjf_charge_fpg_history_future`
+        (peak,plain,valley,project_id,set_time,create_at,create_by)
+        values
+            (
+            #{peak},
+            #{plain},
+            #{valley},
+            #{project_id},
+            #{set_time},
+			SYSDATE(),
+            #{user_name}
+            )
+    </insert>
+
+
+    <!-- 新增电费设置 待生效-->
+    <insert id="addLadderFutrue" parameterType="java.util.HashMap">
+        insert into `sjf_charge_ladder_history_future`
+        (first_ladder,second_ladder,project_id,set_time,create_at,create_by)
+        values
+            (
+            #{first_ladder},
+            #{second_ladder},
+            #{project_id},
+            #{set_time},
+			SYSDATE(),
+            #{user_name}
+            )
+    </insert>
+
+
+
+    <delete id="deleteAllFpgFuture">
+		delete from `sjf_charge_fpg_history_future`
+		WHERE project_id=#{project_id}
+	</delete>
+    <delete id="deleteAllLadderFuture">
+		delete from `sjf_charge_ladder_history_future`
+		WHERE project_id=#{project_id}
+	</delete>
+
+    <delete id="deleteHouseTypeFuture">
+		delete from `sjf_house_type_history_future`
+		WHERE type_id=#{type_id} AND set_time &gt; #{now_time}
+	</delete>
+    <delete id="deleteHouseType">
+		delete from `sjf_house_type_now`
+		WHERE id=#{type_id}
+	</delete>
+    <delete id="deleteAllHouseTypeFuture">
+		delete from `sjf_house_type_history_future`
+		WHERE type_id=#{type_id}
+	</delete>
+
+</mapper>

@@ -1,0 +1,626 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.ElcmDeviceInfoDao">
+
+    <!-- #########################设备字典表部分################################################ -->
+
+    <!-- 获取所有的设备类型 -->
+    <select id="getDeviceTypeTree" resultType="com.sl.idripapp.entity.ElcmDeviceTypeTree">
+       SELECT
+            elcm_device_type.device_type_id AS deviceTypeId,
+            elcm_device_type.device_type_name AS deviceTypeName,
+            elcm_device_type.device_type_url AS deviceTypeUrl,
+            elcm_device_type.parent_id AS parentId
+       FROM
+	        elcm_device_type WHERE project_id=#{project_id}
+	   ORDER bY elcm_device_type.device_type_id
+    </select>
+    <!-- 获取设备数量 -->
+    <select id="getDeviceCountByType" resultType="java.util.HashMap">
+      SELECT
+            device_type_id,COUNT(*) AS deviceCount
+       FROM
+	        elcm_device_info
+	   WHERE   project_id=#{project_id}
+	   GROUP BY `device_type_id`
+    </select>
+
+
+    <!-- 获取所有的设备类型 -->
+    <select id="getDeviceTypes" resultType="java.util.HashMap">
+       SELECT
+            elcm_device_type.device_type_id,
+            elcm_device_type.device_type_name
+       FROM
+	        elcm_device_type
+	   ORDER bY elcm_device_type.device_type_id
+    </select>
+
+    <!-- 获取所有的设备状态 -->
+    <select id="getDeviceStatus" resultType="java.util.HashMap">
+       SELECT
+            elcm_device_status.status_id,
+            elcm_device_status.status_name
+       FROM
+            elcm_device_status
+       ORDER bY elcm_device_status.status_id
+    </select>
+
+    <!-- 获取所有的资产类别 -->
+    <select id="getDeviceMaterial" resultType="java.util.HashMap">
+       SELECT
+            elcm_assets_type.id AS assets_id,
+            elcm_assets_type.`name` AS assets_name
+        FROM
+            elcm_assets_type
+    </select>
+
+
+
+
+    <!-- ##############################设备列表部分################################################### -->
+    <!-- 设备台账页面根据筛选条件获取设备列表 -->
+    <select id="getDeviceList" resultType="java.util.HashMap">
+        SELECT
+            elcm_device_info.id AS device_id,
+            elcm_device_info.device_number,
+            elcm_device_info.device_name,
+            elcm_device_info.device_model,
+            elcm_device_status.status_name,
+            elcm_device_info.affiliated_unit
+        FROM
+            elcm_device_info
+            LEFT JOIN elcm_device_status ON elcm_device_info.status_id = elcm_device_status.status_id
+            WHERE elcm_device_info.project_id=#{project_id}
+            <if test="status_id != null and status_id !='' and status_id != 0 and status_id != '0'">
+                AND elcm_device_info.status_id = #{status_id}
+            </if>
+            <if test="device_type_id != null and device_type_id !='' and device_type_id != 0 and device_type_id != '0'">
+                AND elcm_device_info.device_type_id = #{device_type_id}
+            </if>
+            <if test="device_number != null and device_number !=''">
+                AND elcm_device_info.device_number like concat('%',#{device_number},'%')
+            </if>
+            <if test="device_name != null and device_name !=''">
+                AND elcm_device_info.device_name like concat('%',#{device_name},'%')
+            </if>
+        ORDER BY elcm_device_info.install_time desc
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 设备台账页面根据筛选条件获取设备列表->count -->
+    <select id="getDeviceListCount" resultType="java.lang.Integer">
+        SELECT
+            count(elcm_device_info.id)
+        FROM
+            elcm_device_info
+        LEFT JOIN elcm_device_status ON elcm_device_info.status_id = elcm_device_status.status_id
+        WHERE elcm_device_info.project_id=#{project_id}
+            <if test="status_id != null and status_id !='' and status_id != 0 and status_id != '0'">
+                AND elcm_device_info.status_id = #{status_id}
+            </if>
+            <if test="device_type_id != null and device_type_id !='' and device_type_id != 0 and device_type_id != '0'">
+                AND elcm_device_info.device_type_id = #{device_type_id}
+            </if>
+            <if test="device_number != null and device_number !=''">
+                AND elcm_device_info.device_number like concat('%',#{device_number},'%')
+            </if>
+            <if test="device_name != null and device_name !=''">
+                AND elcm_device_info.device_name like concat('%',#{device_name},'%')
+            </if>
+        ORDER BY elcm_device_info.install_time desc
+    </select>
+
+    <!-- 设备台账页面导出数据查询 -->
+    <select id="getExportDataList" resultType="java.util.HashMap">
+        SELECT
+            elcm_device_info.device_number,
+            elcm_device_info.device_name,
+            elcm_device_type.device_type_name,
+            elcm_device_info.affiliated_unit,
+            elcm_device_info.use_unit,
+            elcm_device_info.install_position,
+            elcm_assets_type.`name` AS assets_name,
+            elcm_device_info.brand,
+            elcm_device_info.supplier,
+            elcm_device_info.device_model,
+            elcm_device_info.use_years,
+            elcm_device_info.price,
+            elcm_device_info.number,
+            elcm_device_info.project_name,
+            date_format(elcm_device_info.install_time,'%Y-%m-%d') AS install_time,
+            elcm_device_info.construction_unit,
+            elcm_device_info.contact_construction_unit,
+            elcm_device_info.unit,
+            elcm_device_info.contact_unit,
+            elcm_device_info.manufactor,
+            elcm_device_info.contact_manufactor,
+            elcm_device_info.remarks
+        FROM
+            elcm_device_info
+            LEFT JOIN elcm_device_type ON elcm_device_info.device_type_id = elcm_device_type.device_type_id
+            LEFT JOIN elcm_assets_type ON elcm_device_info.assets_id = elcm_assets_type.id
+        WHERE
+            elcm_device_info.id IN
+            <foreach collection="deviceIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+    </select>
+
+    <!-- 查询所有设备编号 -->
+    <select id="getDeviceNumberList" resultType="java.lang.String">
+        SELECT
+            elcm_device_info.device_number
+        FROM
+            elcm_device_info
+        WHERE elcm_device_info.project_id=#{project_id}
+    </select>
+
+    <!-- 批量添加设备 -->
+    <insert id="batchAddDevice" parameterType="java.util.HashMap">
+        INSERT INTO `elcm_device_info` (
+            `device_number`,`device_name`,`device_type_id`,`affiliated_unit`,`use_unit`,`install_position`,`assets_id`,`brand`,
+            `supplier`,`use_years`,`device_model`,`price`,`number`, `project_name`, `install_time`,  `construction_unit`,
+            `contact_construction_unit`,`unit`,`contact_unit`,`manufactor`,`contact_manufactor`,`remarks`,`qr_code`,
+            `device_url`,`operator`,`project_id`,`create_time`,`status_id`
+        )
+        VALUES
+        <foreach collection ="deviceList" item="map" index= "index" separator =",">
+            (
+                #{map.device_number},#{map.device_name},#{map.device_type_id}, #{map.affiliated_unit},#{map.use_unit},
+                #{map.install_position},#{map.assets_id},#{map.brand}, #{map.supplier},#{map.use_years},#{map.device_model},
+                #{map.price},#{map.number},#{map.project_name}, #{map.install_time},#{map.construction_unit},
+                #{map.contact_construction_unit},#{map.unit},#{map.contact_unit},#{map.manufactor},#{map.contact_manufactor},
+                #{map.remarks},#{map.qr_code},#{map.device_url}, #{user_id},#{project_id},now(),1
+            )
+        </foreach >
+    </insert>
+
+    <!-- 选择设备页面根据条件获取设备列表 -->
+    <select id="getDeviceListForSelect" resultType="java.util.HashMap">
+        SELECT
+            elcm_device_info.id AS device_id,
+            elcm_device_info.device_number,
+            elcm_device_info.device_name,
+            elcm_device_info.device_model,
+            elcm_device_type.device_type_name,
+            elcm_device_info.install_position,
+            elcm_assets_type.name AS assets_name
+        FROM
+            elcm_device_info
+        LEFT JOIN elcm_device_type ON elcm_device_info.device_type_id = elcm_device_type.device_type_id
+        LEFT JOIN elcm_assets_type ON elcm_device_info.assets_id = elcm_assets_type.id
+        WHERE elcm_device_info.project_id=#{project_id}
+        <if test="device_type_id != null and device_type_id !='' and device_type_id != 0 and device_type_id != '0'">
+            AND elcm_device_info.device_type_id = #{device_type_id}
+        </if>
+        <if test="name != null and name !=''">
+            AND (elcm_device_info.device_number like concat('%',#{name},'%') OR elcm_device_info.device_name like concat('%',#{name},'%') )
+        </if>
+        ORDER BY elcm_device_info.install_time desc
+    </select>
+
+    <!-- 获取设备台账页批量打印接口数据 -->
+    <select id="getPrintDataList" resultType="java.util.HashMap">
+        SELECT
+            elcm_device_info.id AS device_id,
+            elcm_device_info.device_number,
+            elcm_device_info.device_name,
+            elcm_device_info.use_unit,
+            elcm_device_info.device_model
+        FROM
+            elcm_device_info
+        WHERE
+            elcm_device_info.id IN
+        <foreach collection="deviceIds" item="id" index="index" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </select>
+
+
+
+
+
+<!--    ##############################设备基础信息部分###################################################-->
+    <!-- 设备台账页面基础信息查询 -->
+    <select id="getDeviceById" resultType="java.util.HashMap">
+       SELECT
+            elcm_device_info.device_number,
+            elcm_device_info.device_name,
+            elcm_device_info.device_type_id,
+            elcm_device_type.device_type_name,
+            elcm_device_info.affiliated_unit,
+            elcm_device_info.use_unit,
+            elcm_device_info.install_position,
+            elcm_device_info.assets_id,
+            elcm_assets_type.`name` AS assets_name,
+            elcm_device_info.brand,
+            elcm_device_info.supplier,
+            elcm_device_info.device_model,
+            elcm_device_info.use_years,
+            elcm_device_info.price,
+            elcm_device_info.number,
+            elcm_device_info.project_name,
+            date_format(elcm_device_info.install_time,'%Y-%m-%d') AS install_time,
+            elcm_device_info.construction_unit,
+            elcm_device_info.contact_construction_unit,
+            elcm_device_info.unit,
+            elcm_device_info.contact_unit,
+            elcm_device_info.manufactor,
+            elcm_device_info.contact_manufactor,
+            elcm_device_info.remarks,
+            elcm_device_info.qr_code,
+            elcm_device_info.device_url
+        FROM
+            elcm_device_info
+            LEFT JOIN elcm_device_type ON elcm_device_info.device_type_id = elcm_device_type.device_type_id
+            LEFT JOIN elcm_assets_type ON elcm_device_info.assets_id = elcm_assets_type.id
+        WHERE
+            elcm_device_info.id = #{device_id}
+    </select>
+
+    <!-- 添加单个设备 -->
+    <insert id="addSingleDevice" parameterType="java.util.HashMap">
+        INSERT INTO `elcm_device_info` (
+            `device_number`,`device_name`,`device_type_id`,`affiliated_unit`,`use_unit`,`install_position`,`assets_id`,`brand`,
+            `supplier`,`use_years`,`device_model`,`price`,`number`, `project_name`, `install_time`,  `construction_unit`,
+            `contact_construction_unit`,`unit`,`contact_unit`,`manufactor`,`contact_manufactor`,`remarks`,`qr_code`,
+            `device_url`,`operator`,`project_id`,`create_time`,`status_id`
+        )
+        VALUES
+        (
+            #{device_number},#{device_name},#{device_type_id}, #{affiliated_unit},#{use_unit},#{install_position},#{assets_id},
+            #{brand}, #{supplier},#{use_years},#{device_model},#{price},#{number},#{project_name}, #{install_time},
+            #{construction_unit},#{contact_construction_unit},#{unit},#{contact_unit},#{manufactor},#{contact_manufactor},
+            #{remarks},#{qr_code},#{device_url}, #{user_id},#{project_id},now(),1
+        )
+    </insert>
+
+    <!-- 修改设备信息 -->
+    <update id="updateDevice" parameterType="java.util.HashMap">
+        update `elcm_device_info`
+        <set>
+            <if test="device_number != null">device_number=#{device_number},</if>
+            <if test="device_name != null">device_name=#{device_name},</if>
+            <if test="device_type_id != null">device_type_id=#{device_type_id},</if>
+            <if test="affiliated_unit != nul">affiliated_unit=#{affiliated_unit},</if>
+            <if test="use_unit != null">use_unit=#{use_unit},</if>
+            <if test="install_position != null">install_position=#{install_position},</if>
+            <if test="assets_id != null">assets_id=#{assets_id},</if>
+            <if test="brand != null">brand=#{brand},</if>
+            <if test="supplier != null">supplier=#{supplier},</if>
+            <if test="use_years != null">use_years=#{use_years},</if>
+            <if test="device_model != null">device_model=#{device_model},</if>
+            <if test="price != null">price=#{price},</if>
+            <if test="number != null">`number`=#{number},</if>
+            <if test="project_name != null">project_name=#{project_name},</if>
+            <if test="install_time != null">install_time=#{install_time},</if>
+            <if test="construction_unit != null">construction_unit=#{construction_unit},</if>
+            <if test="contact_construction_unit != null">contact_construction_unit=#{contact_construction_unit},</if>
+            <if test="unit != null">unit=#{unit},</if>
+            <if test="contact_unit != null">contact_unit=#{contact_unit},</if>
+            <if test="manufactor != null">manufactor=#{manufactor},</if>
+            <if test="contact_manufactor != null">contact_manufactor=#{contact_manufactor},</if>
+            <if test="remarks != null">remarks=#{remarks},</if>
+            <if test="device_url != null">device_url=#{device_url},</if>
+        </set>
+        where id=#{device_id}
+    </update>
+
+
+
+
+    <!--    ##############################设备组成元件部分###################################################-->
+    <!-- 组成元件列表查询 -->
+    <select id="getComponentList" resultType="java.util.HashMap">
+        SELECT
+            elcm_component.group_name,
+            elcm_component.`name`,
+            elcm_component.model,
+            elcm_component.brand,
+            elcm_component.life,
+            elcm_component.id AS component_id
+        FROM
+            elcm_component
+        WHERE
+            elcm_component.device_id = #{device_id}
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 组成元件列表查询->count -->
+    <select id="getComponentListCount" resultType="java.lang.Integer">
+        SELECT
+            count(elcm_component.id)
+        FROM
+            elcm_component
+        WHERE
+            elcm_component.device_id = #{device_id}
+    </select>
+
+    <!-- 根据元器件id查询单个设备元器件 -->
+    <select id="getComponentById" resultType="java.util.HashMap">
+        SELECT
+            elcm_component.group_name,
+            elcm_component.`name`,
+            elcm_component.model,
+            elcm_component.brand,
+            elcm_component.life,
+            elcm_component.id AS component_id,
+            elcm_component.component_url
+        FROM
+            elcm_component
+        WHERE
+            elcm_component.id = #{component_id}
+    </select>
+
+    <!-- 新增设备元器件 -->
+    <insert id="addComponent" parameterType="java.util.HashMap">
+        INSERT INTO
+            `elcm_component`
+            ( `name`, `model`, `brand`, `life`, `group_name`, `component_url`, `device_id` )
+        VALUES
+            ( #{name}, #{model}, #{brand}, #{life}, #{group_name}, #{component_url}, #{device_id} )
+    </insert>
+
+    <!-- 修改设备元器件 -->
+    <insert id="updateComponent" parameterType="java.util.HashMap">
+        UPDATE `elcm_component`
+        <set>
+            <if test="name != null">`name`=#{name},</if>
+            <if test="model != null">`model`=#{model},</if>
+            <if test="brand != null">`brand`=#{brand},</if>
+            <if test="group_name != null">`group_name`=#{group_name},</if>
+            <if test="component_url != null">`component_url`=#{component_url},</if>
+            <if test="life != null">`life`=#{life},</if>
+        </set>
+        WHERE
+            `id` = #{component_id}
+    </insert>
+
+    <!-- 删除设备元器件 -->
+    <delete id="deleteComponent" parameterType="java.util.HashMap">
+        DELETE FROM
+            `elcm_component`
+        WHERE
+            `id` = #{component_id}
+    </delete>
+
+
+
+
+<!--    ##############################设备技术参数部分###################################################-->
+    <!-- 技术参数列表查询 -->
+    <select id="getTechnicalParamList" resultType="java.util.HashMap">
+        SELECT
+            elcm_technical_param.id,
+            elcm_technical_param.`name`,
+            elcm_technical_param.`value`,
+            elcm_technical_param.group_name
+        FROM
+            elcm_technical_param
+        WHERE
+            elcm_technical_param.device_id = #{device_id}
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 技术参数列表查询->count -->
+    <select id="getTechnicalParamListCount" resultType="java.lang.Integer">
+        SELECT
+            count(elcm_technical_param.id)
+        FROM
+            elcm_technical_param
+        WHERE
+            elcm_technical_param.device_id = #{device_id}
+    </select>
+
+    <!-- 根据技术参数id查询单个技术参数 -->
+    <select id="getTechnicalParamById" resultType="java.util.HashMap">
+        SELECT
+            elcm_technical_param.id AS param_id,
+            elcm_technical_param.`name`,
+            elcm_technical_param.`value`,
+            elcm_technical_param.group_name
+        FROM
+            elcm_technical_param
+        WHERE
+            elcm_technical_param.id = #{param_id}
+    </select>
+
+    <!-- 新增设备技术参数 -->
+    <insert id="addTechnicalParam" parameterType="java.util.HashMap">
+        INSERT INTO
+            `elcm_technical_param`
+            ( `name`, `value`, `group_name`, `device_id` )
+        VALUES
+            ( #{name}, #{value}, #{group_name}, #{device_id} )
+    </insert>
+
+    <!-- 修改设备技术参数 -->
+    <insert id="updateTechnicalParam" parameterType="java.util.HashMap">
+        UPDATE `elcm_technical_param`
+        <set>
+            <if test="name != null">`name`=#{name},</if>
+            <if test="value != null">`value`=#{value},</if>
+            <if test="group_name != null">`group_name`=#{group_name},</if>
+        </set>
+        WHERE
+        `id` = #{param_id}
+    </insert>
+
+    <!-- 删除设备技术参数 -->
+    <delete id="deleteTechnicalParam" parameterType="java.util.HashMap">
+        DELETE FROM
+            `elcm_technical_param`
+        WHERE
+            `id` = #{param_id}
+    </delete>
+
+
+
+
+<!--    ##############################设备维保记录部分###################################################-->
+    <!-- 维保记录列表查询 -->
+    <select id="getMaintenanceRecordList" resultType="java.util.HashMap">
+        SELECT
+            elcm_maintenance_type.maintenance_type_name,
+            user.`name` AS user_name,
+            date_format(elcm_maintenance_record.create_time,'%Y-%m-%d') AS create_time,
+            elcm_maintenance_record.`desc`,
+            elcm_maintenance_record.odd_number,
+            elcm_maintenance_type.approval_type
+        FROM
+            elcm_maintenance_record
+            LEFT JOIN elcm_maintenance_type ON elcm_maintenance_record.maintenance_type_id = elcm_maintenance_type.maintenance_type_id
+            LEFT JOIN user ON elcm_maintenance_record.user_id = user.id
+        WHERE
+            elcm_maintenance_record.device_id = #{device_id}
+            AND date_format( elcm_maintenance_record.create_time, '%Y-%m-%d' ) BETWEEN #{startTime} AND #{endTime}
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 维保记录列表查询->count -->
+    <select id="getMaintenanceRecordListCount" resultType="java.lang.Integer">
+        SELECT
+            count(*)
+        FROM
+            elcm_maintenance_record
+            LEFT JOIN elcm_maintenance_type ON elcm_maintenance_record.maintenance_type_id = elcm_maintenance_type.maintenance_type_id
+            LEFT JOIN user ON elcm_maintenance_record.user_id = user.id
+        WHERE
+            elcm_maintenance_record.device_id = #{device_id}
+            AND date_format( elcm_maintenance_record.create_time, '%Y-%m-%d' ) BETWEEN #{startTime} AND #{endTime}
+    </select>
+
+    <!-- 维保记录统计查询 -->
+    <select id="getMaintenanceRecordCount" resultType="java.util.HashMap">
+        SELECT
+            elcm_maintenance_type.maintenance_type_name,
+	        COUNT(elcm_maintenance_record.maintenance_type_id) AS count
+        FROM
+            elcm_maintenance_record
+            LEFT JOIN elcm_maintenance_type ON elcm_maintenance_record.maintenance_type_id = elcm_maintenance_type.maintenance_type_id
+        WHERE
+            elcm_maintenance_record.device_id = #{device_id}
+            AND date_format( elcm_maintenance_record.create_time, '%Y-%m-%d' ) BETWEEN #{startTime} AND #{endTime}
+            GROUP BY elcm_maintenance_record.maintenance_type_id
+    </select>
+
+
+
+
+
+<!--    ##############################设备保养清单部分###################################################-->
+    <!-- 保养清单列表查询 -->
+    <select id="getMaintainList" resultType="java.util.HashMap">
+        SELECT
+            elcm_maintain.maintain_parts,
+            elcm_maintain.operation_content,
+            elcm_maintain.operation_steps,
+            elcm_maintain.maintain_intervals,
+            elcm_maintain.maintain_intervals_unit,
+            elcm_maintain.task_work,
+            date_format(elcm_maintain.last_maintenance_time,'%Y-%m-%d') AS last_maintenance_time,
+            elcm_maintain.id AS maintain_id
+        FROM
+            elcm_maintain
+        WHERE
+            elcm_maintain.device_id = #{device_id}
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 保养清单列表查询->count -->
+    <select id="getMaintainListCount" resultType="java.lang.Integer">
+        SELECT
+            count(elcm_maintain.id)
+        FROM
+            elcm_maintain
+        WHERE
+            elcm_maintain.device_id = #{device_id}
+    </select>
+
+    <!-- 根据保养清单id查询单个保养清单 -->
+    <select id="getMaintainById" resultType="java.util.HashMap">
+        SELECT
+            elcm_maintain.id AS maintain_id,
+            elcm_maintain.maintain_parts,
+            elcm_maintain.operation_content,
+            elcm_maintain.operation_steps,
+            elcm_maintain.maintain_intervals,
+            elcm_maintain.maintain_intervals_unit,
+            elcm_maintain.task_work
+        FROM
+            elcm_maintain
+        WHERE
+            elcm_maintain.id = #{maintain_id}
+    </select>
+
+    <!-- 新增设备保养清单 -->
+    <insert id="addMaintain" parameterType="java.util.HashMap">
+        INSERT INTO
+            `elcm_maintain`
+            ( `maintain_parts`, `operation_content`, `operation_steps`, `maintain_intervals`, `maintain_intervals_unit`,
+             `task_work`, `device_id` )
+        VALUES
+            ( #{maintain_parts}, #{operation_content}, #{operation_steps}, #{maintain_intervals}, #{maintain_intervals_unit},
+             #{task_work}, #{device_id} )
+    </insert>
+
+    <!-- 修改设备保养清单 -->
+    <insert id="updateMaintain" parameterType="java.util.HashMap">
+        UPDATE `elcm_maintain`
+        <set>
+            <if test="maintain_parts != null">`maintain_parts`=#{maintain_parts},</if>
+            <if test="operation_content != null">`operation_content`=#{operation_content},</if>
+            <if test="operation_steps != null">`operation_steps`=#{operation_steps},</if>
+            <if test="maintain_intervals != null">`maintain_intervals`=#{maintain_intervals},</if>
+            <if test="maintain_intervals_unit != null">`maintain_intervals_unit`=#{maintain_intervals_unit},</if>
+            <if test="task_work != null">`task_work`=#{task_work},</if>
+        </set>
+        WHERE
+        `id` = #{maintain_id}
+    </insert>
+
+    <!-- 删除设备保养清单 -->
+    <delete id="deleteMaintain" parameterType="java.util.HashMap">
+        DELETE FROM
+            `elcm_maintain`
+        WHERE
+            `id` = #{maintain_id}
+    </delete>
+
+
+
+
+<!--    ##############################设备资料部分###################################################-->
+    <!-- 设备资料列表查询 -->
+    <select id="getMaterialList" resultType="java.util.HashMap">
+        SELECT
+            elcm_device_material.id,
+            elcm_device_material.file_name,
+            elcm_device_material.file_path,
+            elcm_device_material.mime_type
+        FROM
+            elcm_device_material
+        WHERE
+            elcm_device_material.device_id = #{device_id}
+    </select>
+
+    <!-- 新增设备资料 -->
+    <insert id="addMaterial" parameterType="java.util.HashMap">
+        INSERT INTO
+            `elcm_device_material`
+            ( `file_name`, `file_path`, `device_id` )
+        VALUES
+            ( #{file_name}, #{file_path}, #{device_id} )
+    </insert>
+
+    <!-- 删除设备资料 -->
+    <delete id="deleteMaterial" parameterType="java.util.HashMap">
+        DELETE FROM
+            `elcm_device_material`
+        WHERE
+            `id` = #{material_id}
+    </delete>
+
+</mapper>

@@ -1,0 +1,340 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.ElcmMalfunctionRepairDao">
+
+    <!-- 故障状态-->
+    <select id="getMalfunctionStatus" resultType="java.util.HashMap">
+       SELECT status,status_name
+       FROM `elcm_malfunction_status` m
+    </select>
+
+    <!-- 故障状态-->
+    <select id="getRepairStatus" resultType="java.util.HashMap">
+       SELECT 0 as `status`,'全部' as status_name
+       UNION ALL
+       SELECT status,status_name
+       FROM `elcm_malfunction_repair_status` m
+        WHERE 1=1
+        <if test="is_agree != null and is_agree != ''">
+            and is_agree = #{is_agree}
+        </if>
+    </select>
+
+
+    <!-- 故障列表-->
+    <select id="getMalfunctionList" resultType="java.util.HashMap">
+       SELECT m.id malfunction_id,m.malfunction_number,d.device_number,d.device_name,d.install_position,m.mal_describe,
+       m.urgency,
+       DATE_FORMAT(m.report_time, '%Y-%m-%d %H:%i:%s') as report_time,u.`name` report_user,m.report_user report_user_id,
+        CASE m.is_repair
+        WHEN '0' THEN '否'
+        WHEN '1' THEN '是'
+        ELSE m.is_repair END is_repair,
+       m.`status`,s.status_name
+       FROM `elcm_malfunction` m
+       INNER JOIN `elcm_device_info` d on m.device_id=d.id
+       INNER JOIN `elcm_malfunction_status` s on m.`status`=s.`status`
+       LEFT JOIN `user` u on m.report_user=u.id
+        WHERE m.project_id=#{project_id}
+        <if test="status != null and status != ''and status != 0">
+            and m.status = #{status}
+        </if>
+        <if test="urgency != null and urgency != '' and urgency != '全部'">
+            and m.urgency = #{urgency}
+        </if>
+        <if test="malfunction_number != null and malfunction_number != ''">
+            and m.malfunction_number like CONCAT('%',#{malfunction_number},'%')
+        </if>
+        <if test="report_user != null and report_user != ''">
+            and u.`name` like CONCAT('%',#{report_user},'%')
+        </if>
+        ORDER BY m.report_time DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+    <!-- 故障列表-->
+    <select id="getMalfunctionListCount" resultType="java.lang.Integer">
+       SELECT COUNT(*)
+       FROM `elcm_malfunction` m
+       INNER JOIN `elcm_device_info` d on m.device_id=d.id
+       LEFT JOIN `user` u on m.report_user=u.id
+        WHERE m.project_id=#{project_id}
+        <if test="status != null and status != ''and status != 0">
+            and m.status = #{status}
+        </if>
+        <if test="urgency != null and urgency != '' and urgency != '全部'">
+            and m.urgency = #{urgency}
+        </if>
+        <if test="malfunction_number != null and malfunction_number != ''">
+            and m.malfunction_number like CONCAT('%',#{malfunction_number},'%')
+        </if>
+        <if test="report_user != null and report_user != ''">
+            and u.`name` like CONCAT('%',#{report_user},'%')
+        </if>
+    </select>
+
+
+    <!-- 新增-->
+    <insert id="addMalfunction" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="malfunction_id">
+        insert into `elcm_malfunction`
+        (device_id,project_id,mal_describe,mal_url,report_user,report_time,status,malfunction_number,urgency,is_repair)
+        values
+        (
+        #{device_id},
+        #{project_id},
+        #{mal_describe},
+        #{mal_url},
+        #{user_id},
+        SYSDATE(),
+        #{status},
+        #{malfunction_number},
+        #{urgency},
+        #{is_repair}
+        )
+    </insert>
+
+    <!-- 新增维修 -->
+    <update id="addReapir" parameterType="java.util.HashMap">
+        update `elcm_malfunction`
+        <set>
+            <if test="repair_number != null">repair_number=#{repair_number},</if>
+            <if test="repair_status != null">repair_status=#{repair_status},</if>
+            <if test="is_repair_time != null">is_repair_time=#{is_repair_time}</if>
+        </set>
+        WHERE id=#{malfunction_id}
+    </update>
+
+
+    <select id="getMalfunction" resultType="java.util.HashMap">
+        SELECT m.id malfunction_id,m.malfunction_number,u.`name` report_user,DATE_FORMAT(m.report_time, '%Y-%m-%d %H:%i:%s') as report_time,
+        m.`status`,s.status_name,m.repair_status,rs.status_name repair_status_name,
+        m.device_id,d.device_number,d.device_name,d.device_model,d.install_position,
+        m.urgency,m.mal_describe,m.mal_url,m.repair_number,m.repair_url,uu.`name` repair_user,m.repair_time,m.repair_describe,
+        CASE m.is_repair
+        WHEN '0' THEN '否'
+        WHEN '1' THEN '是'
+        ELSE m.is_repair END is_repair
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        INNER JOIN `user` u on m.report_user=u.id
+        LEFT JOIN `user` uu on m.repair_user=uu.id
+        INNER JOIN `elcm_malfunction_status` s on m.`status`=s.`status`
+        LEFT JOIN `elcm_malfunction_repair_status` rs on m.`repair_status`=rs.`status`
+        WHERE  1=1
+        <if test="malfunction_id != null and malfunction_id != ''and malfunction_id != 0">
+            and   m.id= #{malfunction_id}
+        </if>
+        <if test="malfunction_number != null and malfunction_number != ''">
+            and m.malfunction_number = #{malfunction_number}
+        </if>
+    </select>
+
+
+
+    <!-- 维修 -->
+    <update id="updateMalfunction" parameterType="java.util.HashMap">
+        update `elcm_malfunction`
+        <set>
+            <if test="status != null">status=#{status},</if>
+            <if test="repair_time != null">repair_time=#{repair_time},</if>
+            <if test="repair_url != null">repair_url=#{repair_url},</if>
+            <if test="repair_describe != null">repair_describe=#{repair_describe},</if>
+            <if test="repair_user != null">repair_user=#{repair_user},</if>
+            <if test="repair_original_user != null">repair_original_user=#{repair_original_user},</if>
+            <if test="repair_status != null">repair_status=#{repair_status},</if>
+            <if test="device_id != null">device_id=#{device_id},</if>
+            <if test="urgency != null">urgency=#{urgency},</if>
+            <if test="mal_describe != null">mal_describe=#{mal_describe},</if>
+            <if test="mal_url != null">mal_url=#{mal_url},</if>
+            <if test="assign_time != null">assign_time=#{assign_time},</if>
+            <if test="cancel_time != null">cancel_time=#{cancel_time},</if>
+            <if test="cancel_reason != null">cancel_reason=#{cancel_reason},</if>
+            <if test="cancel_user != null">cancel_user=#{cancel_user}</if>
+        </set>
+        WHERE id=#{malfunction_id}
+    </update>
+
+
+    <delete id="deleteMalfunction">
+		delete from `elcm_malfunction`
+		WHERE id=#{malfunction_id}
+	</delete>
+
+
+    <!-- 维修列表-->
+    <select id="getStatusByIds" resultType="java.lang.String">
+        SELECT m.repair_status
+        FROM `elcm_malfunction` m
+        WHERE id in
+        <foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+            #{list}
+        </foreach>
+    </select>
+
+
+       <!--===========================维修===========================-->
+
+    <!-- 维修列表-->
+    <select id="getRepairList" resultType="java.util.HashMap">
+        SELECT m.id repair_id,m.repair_number,d.device_number,d.device_name,d.install_position,m.mal_describe,m.urgency,
+        DATE_FORMAT(m.report_time, '%Y-%m-%d %H:%i:%s') as report_time,
+        DATE_FORMAT(m.assign_time, '%Y-%m-%d %H:%i:%s') as assign_time,
+        DATE_FORMAT(m.repair_time, '%Y-%m-%d %H:%i:%s') as repair_time,u.id user_id,
+        u.`name` repair_user,m.repair_status `status`,s.status_name
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        INNER JOIN `elcm_malfunction_repair_status` s on m.`repair_status`=s.`status`
+        LEFT JOIN `user` u on m.repair_user=u.id
+        WHERE m.project_id=#{project_id} AND m.repair_number!=''
+        <if test="status != null and status != ''and status != 0">
+            and m.repair_status = #{status}
+        </if>
+        <if test="urgency != null and urgency != '' and urgency != '全部'">
+            and m.urgency = #{urgency}
+        </if>
+        <if test="repair_number != null and repair_number != ''">
+            and m.repair_number like CONCAT('%',#{repair_number},'%')
+        </if>
+        <if test="repair_user != null and repair_user != ''">
+            and u.`name` like CONCAT('%',#{repair_user},'%')
+        </if>
+        ORDER BY m.report_time DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+    <!-- 维修列表 -->
+    <select id="getRepairListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        LEFT JOIN `user` u on m.repair_user=u.id
+        WHERE m.project_id=#{project_id} AND m.repair_number!=''
+        <if test="status != null and status != ''and status != 0">
+            and m.repair_status = #{status}
+        </if>
+        <if test="urgency != null and urgency != '' and urgency != '全部'">
+            and m.urgency = #{urgency}
+        </if>
+        <if test="repair_number != null and repair_number != ''">
+            and m.repair_number like CONCAT('%',#{repair_number},'%')
+        </if>
+        <if test="repair_user != null and repair_user != ''">
+            and u.`name` like CONCAT('%',#{repair_user},'%')
+        </if>
+    </select>
+
+
+
+    <!--&lt;!&ndash; 分配人员 &ndash;&gt;
+    <update id="assignUser" parameterType="java.util.HashMap">
+        update `elcm_malfunction`
+        <set>
+            <if test="repair_user != null">repair_user=#{repair_user},</if>
+            assign_time=SYSDATE(),
+            repair_status=2
+        </set>
+        WHERE id=#{malfunction_id}
+    </update>-->
+
+
+
+    <select id="getRepair" resultType="java.util.HashMap">
+        SELECT m.id repair_id,m.repair_number,u.`name` repair_user,m.repair_user repair_user_id,m.repair_original_user,
+			   m.repair_status `status`,s.status_name,
+              DATE_FORMAT(m.repair_time, '%Y-%m-%d %H:%i:%s') as repair_time,
+              DATE_FORMAT(m.assign_time, '%Y-%m-%d %H:%i:%s') as assign_time,
+			  d.device_number,d.device_name,d.device_model,d.install_position,
+			  m.mal_describe,m.urgency,u2.`name` report_user,
+			   DATE_FORMAT(m.report_time, '%Y-%m-%d %H:%i:%s') as report_time,m.mal_url,m.repair_describe,m.repair_url
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        LEFT JOIN `user` u on m.repair_user=u.id
+        LEFT JOIN `user` u2 on m.report_user=u2.id
+        INNER JOIN `elcm_malfunction_repair_status` s on m.`repair_status`=s.`status`
+        WHERE m.id=#{repair_id}
+    </select>
+
+
+    <!-- 退单 -->
+    <update id="chargeback" parameterType="java.util.HashMap">
+        update `elcm_malfunction`
+        <set>
+            repair_status=#{repair_status},
+            assign_time=#{assign_time},
+            repair_user=#{repair_user},
+            repair_original_user=#{repair_original_user}
+        </set>
+        WHERE id=#{repair_id}
+    </update>
+
+
+
+    <select id="getMyRepairList" resultType="java.util.HashMap">
+        SELECT m.id repair_id,m.repair_number,d.device_number,d.device_name,d.install_position,m.mal_describe,m.urgency,
+        DATE_FORMAT(m.report_time, '%Y-%m-%d %H:%i:%s') as report_time,
+        DATE_FORMAT(m.assign_time, '%Y-%m-%d %H:%i:%s') as assign_time,
+        DATE_FORMAT(m.repair_time, '%Y-%m-%d %H:%i:%s') as repair_time,
+        u.`name` repair_user,m.repair_user repair_user_id,m.repair_status `status`,s.status_name
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        INNER JOIN `elcm_malfunction_repair_status` s on m.`repair_status`=s.`status`
+        LEFT JOIN `user` u on m.repair_user=u.id
+        WHERE m.project_id=#{project_id} AND m.repair_number!=''
+        <if test="status != null and status != ''and status != 0">
+            and m.repair_status = #{status}
+        </if>
+        <if test="repair_number != null and repair_number != ''">
+            and m.repair_number like CONCAT('%',#{repair_number},'%')
+        </if>
+        <if test="repair_user_id != null and repair_user_id != ''">
+            and m.repair_user=#{repair_user_id}
+        </if>
+        <if test='is_complete == "1"'>
+            and m.repair_status in(4,6)
+        </if>
+        <if test='is_complete == "0"'>
+            and m.repair_status!=6 and m.repair_status!=4
+        </if>
+        ORDER BY m.repair_status,m.repair_number DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+    <!-- 维修列表 -->
+    <select id="getMyRepairListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        LEFT JOIN `user` u on m.repair_user=u.id
+        WHERE m.project_id=#{project_id} AND m.repair_number!=''
+        <if test="status != null and status != ''and status != 0">
+            and m.repair_status = #{status}
+        </if>
+        <if test="repair_number != null and repair_number != ''">
+            and m.repair_number like CONCAT('%',#{repair_number},'%')
+        </if>
+        <if test="repair_user_id != null and repair_user_id != ''">
+            and m.repair_user=#{repair_user_id}
+        </if>
+        <if test='is_complete == "1"'>
+            and m.repair_status in(4,6)
+        </if>
+        <if test='is_complete == "0"'>
+            and m.repair_status!=6 and m.repair_status!=4
+        </if>
+    </select>
+
+
+
+
+    <!-- 转派 -->
+    <update id="transfer" parameterType="java.util.HashMap">
+        update `elcm_malfunction`
+        <set>
+            repair_status=#{repair_status},
+            assign_time=#{assign_time},
+            repair_user=#{repair_user},
+            repair_original_user=#{repair_original_user}
+        </set>
+        WHERE id=#{repair_id}
+    </update>
+
+
+</mapper>

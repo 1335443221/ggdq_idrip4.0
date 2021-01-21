@@ -1,0 +1,717 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.WebAccountUserDao">
+
+<!--    #####################人员台账###############################-->
+    <!-- 获取所有公司 -->
+    <select id="getAllCompany" resultType="java.util.HashMap">
+        SELECT
+            id AS `value`,
+            cname AS `label`
+        FROM
+            organizational_company
+        WHERE
+            project_id = #{project_id}
+            AND parent_id != 0
+    </select>
+
+    <!-- 获取所有部门 -->
+    <select id="getAllDepartment" resultType="java.util.HashMap">
+        SELECT
+            id AS `value`,
+            dname AS `label`
+        FROM
+            organizational_department
+        WHERE
+            project_id = #{project_id}
+            <if test="company_id != null and company_id !='' and company_id != 0 and company_id != '0'">
+                AND company_id = #{company_id}
+            </if>
+    </select>
+
+    <!-- 获取所有角色 -->
+    <select id="getAllRoles" resultType="java.util.HashMap">
+        SELECT
+            DISTINCT r.id AS `value`,
+            r.role_name AS `label`
+        FROM
+            rbac_user_role r
+            JOIN role_project_factory_relation rpf ON r.id = rpf.rid
+            JOIN project_factory pf ON rpf.factory_id = pf.id
+            WHERE pf.project_id = #{project_id}
+    </select>
+
+    <!-- 获取用户台账所有标签 -->
+    <select id="getAllLabel" resultType="java.util.HashMap">
+        SELECT
+            `id`,
+            `name`,
+            `color`
+        FROM
+            account_user_label
+        WHERE
+            project_id = #{project_id}
+    </select>
+
+    <!-- 标签新增 -->
+    <insert id="addLabel" parameterType="java.util.HashMap">
+        INSERT INTO `account_user_label`(`name`, `color`, `project_id`) VALUES (#{name}, #{color}, #{project_id});
+    </insert>
+
+    <!-- 标签删除 -->
+    <delete id="deleteLabel" parameterType="java.util.HashMap">
+        DELETE FROM `account_user_label` WHERE `id` = #{id}
+    </delete>
+
+    <!-- 删除标签和所有用户关联信息 -->
+    <delete id="deleteLabelRelation" parameterType="java.util.HashMap">
+        DELETE FROM `account_user_label_relation` WHERE `label_id` = #{id}
+    </delete>
+
+    <!-- 删除用户下所有标签 -->
+    <delete id="deleteUserLabel" parameterType="java.util.HashMap">
+        DELETE FROM `account_user_label_relation` WHERE `account_user_id` = #{account_user_id}
+    </delete>
+
+    <!-- 查询标签是否已经被用户使用 -->
+    <select id="checkLabel" resultType="java.lang.Integer">
+        SELECT COUNT(ID) FROM `account_user_label_relation` WHERE `label_id` = #{id};
+    </select>
+
+    <!-- 根据web user表id查询人员台账基础表信息 -->
+    <select id="getAccountUser" resultType="java.util.HashMap">
+        SELECT
+            *
+        FROM
+            account_user
+        WHERE
+            account_user.id = ( SELECT account_user_id FROM `app_register_user` WHERE `app_register_user`.`user_id` = #{user_id} LIMIT 1 )
+    </select>
+
+    <!-- 为用户批量添加标签关联关系 -->
+    <insert id="addUserLabelRelation" parameterType="java.util.HashMap">
+        INSERT INTO `account_user_label_relation` (`account_user_id`, `label_id`) VALUES
+        <foreach collection ="labels" item="label_id" index= "index" separator =",">
+            (
+            #{account_user_id},
+            #{label_id}
+            )
+        </foreach >
+    </insert>
+
+    <!-- 获取人员台账列表数据 -->
+    <select id="getUserList" resultType="java.util.HashMap">
+        SELECT
+            aru.id AS user_id,
+            au.id AS account_user_id,
+            aru.`name`,
+        CASE
+                au.sex
+                WHEN '1' THEN
+                '男' ELSE '女'
+            END sex,
+            au.political_outlook,
+            oc.cname,
+            CONCAT( od.dname, "---", au.position ) position,
+            au.phone,
+            au.photo
+        FROM
+            `app_register_user` aru
+            LEFT JOIN `user` u ON aru.user_id = u.id
+            LEFT JOIN user_project_relation upr ON u.`id` = upr.uid
+            LEFT JOIN account_user au ON aru.account_user_id = au.id
+            LEFT JOIN organizational_company oc ON oc.id = aru.company_id
+            LEFT JOIN organizational_department od ON od.id = aru.department_id
+            <if test="label_id != null and label_id !='' and label_id != 0 and label_id != '0'">
+                LEFT JOIN account_user_label_relation aulr ON au.id = aulr.account_user_id
+            </if>
+        WHERE
+            aru.account_user_id IS NOT NULL
+            AND upr.project_id = #{project_id}
+            <if test="name != null and name !=''">
+                AND aru.name like CONCAT('%',#{name},'%')
+            </if>
+            <if test="sex != null and name !=''">
+                AND au.sex = #{sex}
+            </if>
+            <if test="department_id != null and department_id !='' and department_id != 0 and department_id != '0'">
+                AND od.id = #{department_id}
+            </if>
+            <if test="label_id != null and label_id !='' and label_id != 0 and label_id != '0'">
+                AND aulr.label_id = #{label_id}
+            </if>
+            <if test="entry_date != null and entry_date !=''">
+                AND date_format( au.entry_date, '%Y-%m-%d' ) BETWEEN #{startTime} AND #{endTime}
+            </if>
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 获取人员台账列表数据 -->
+    <select id="getUserListCount" resultType="java.lang.Integer">
+        SELECT
+            count(aru.id)
+        FROM
+            `app_register_user` aru
+            LEFT JOIN `user` u ON aru.user_id = u.id
+            LEFT JOIN user_project_relation upr ON u.`id` = upr.uid
+            LEFT JOIN account_user au ON aru.account_user_id = au.id
+            LEFT JOIN organizational_company oc ON oc.id = aru.company_id
+            LEFT JOIN organizational_department od ON od.id = aru.department_id
+            <if test="label_id != null and label_id !='' and label_id != 0 and label_id != '0'">
+                LEFT JOIN account_user_label_relation aulr ON au.id = aulr.account_user_id
+            </if>
+        WHERE
+            aru.account_user_id IS NOT NULL
+            AND upr.project_id = #{project_id}
+            <if test="name != null and name !=''">
+                AND aru.`name` like CONCAT('%',#{name},'%')
+            </if>
+            <if test="sex != null and name !=''">
+                AND au.sex = #{sex}
+            </if>
+            <if test="department_id != null and department_id !='' and department_id != 0 and department_id != '0'">
+                AND od.id = #{department_id}
+            </if>
+            <if test="label_id != null and label_id !='' and label_id != 0 and label_id != '0'">
+                AND aulr.label_id = #{label_id}
+            </if>
+            <if test="entry_date != null and entry_date !=''">
+                AND date_format( au.entry_date, '%Y-%m-%d' ) BETWEEN #{startTime} AND #{endTime}
+            </if>
+    </select>
+
+    <!-- 维保台账维保人员列表 -->
+    <select id="getMaintenanceUserList" resultType="java.util.HashMap">
+        SELECT
+            aru.id AS user_id,
+            aru.`name`,
+            oc.cname,
+            od.dname,
+            au.position
+        FROM
+            `app_register_user` aru
+            LEFT JOIN user_project_relation upr ON aru.`user_id` = upr.uid
+            LEFT JOIN account_user au ON aru.account_user_id = au.id
+            LEFT JOIN organizational_company oc ON oc.id = aru.company_id
+            LEFT JOIN organizational_department od ON od.id = aru.department_id
+        WHERE
+            aru.account_user_id IS NOT NULL
+            AND upr.project_id = #{project_id}
+            <if test="name != null and name !=''">
+                AND aru.name like CONCAT('%',#{name},'%')
+            </if>
+            <if test="company_name != null and company_name !=''">
+                AND oc.cname like CONCAT('%',#{company_name},'%')
+            </if>
+            <if test="department_name != null and department_name !=''">
+                AND od.dname like CONCAT('%',#{department_name},'%')
+            </if>
+    </select>
+
+    <!-- 根据台账用户id获取用户下所有标签 -->
+    <select id="getLabelsByUserId" resultType="java.util.HashMap">
+        SELECT
+            ul.`id`,
+            ul.`name`,
+            ul.`color`
+        FROM
+            account_user_label ul
+            LEFT JOIN account_user_label_relation ulr ON ul.id = ulr.label_id
+        WHERE
+            ul.project_id = #{project_id}
+            AND ulr.account_user_id = #{account_user_id}
+    </select>
+
+    <!-- 根据台账用户id获取用户下所有技能证书 -->
+    <select id="getCertificatesByUserId" resultType="java.util.HashMap">
+        SELECT
+            `id`
+            `name`,
+            date_format( `review_date`, '%Y-%m-%d' ) AS `review_date`,
+            `url`
+        FROM
+            account_user_certificate
+        WHERE
+            account_user_id = #{account_user_id}
+    </select>
+
+    <!-- 通过web user获取 app_user -->
+    <select id="getAppUserByWebUser" resultType="java.lang.Integer">
+        SELECT id FROM app_register_user WHERE user_id = #{user_id} LIMIT 1
+    </select>
+
+    <!-- 通过app user获取 account_user -->
+    <select id="getAccountUserByAppUser" resultType="java.lang.Integer">
+        SELECT account_user_id FROM app_register_user WHERE id = #{user_id} LIMIT 1
+    </select>
+
+    <!-- 通过app user获取user -->
+    <select id="getAppUserById" resultType="java.util.HashMap">
+        SELECT * FROM app_register_user WHERE id = #{user_id}
+    </select>
+
+    <!-- 获取人员台账人员详情 -->
+    <select id="getUserDetail" resultType="java.util.HashMap">
+        SELECT
+            ru.`id` AS user_id,
+            ru.`name`,
+            ru.job_number,
+            ru.company_id,
+            ru.department_id,
+            ru.phone AS login_name,
+            ru.pwd AS login_pwd,
+            (SELECT rid FROM rbac_user_role_relation WHERE uid = ru.user_id LIMIT 1) AS role_id,
+            date_format( u.confirmation_date, '%Y-%m-%d' ) AS confirmation_date,
+            date_format( u.entry_date, '%Y-%m-%d' ) AS entry_date,
+            u.*
+        FROM
+            app_register_user ru
+            JOIN account_user u ON ru.account_user_id = u.id
+        WHERE
+            ru.id = #{user_id}
+    </select>
+
+    <!-- 添加app user表 -->
+    <insert id="addAppUser" parameterType="java.util.HashMap">
+        INSERT INTO `app_register_user` (
+            `phone`, `name`, `pwd`, `create_at`, `user_id`, `company_id`, `department_id`, `job_number`, `account_user_id`, `elcm_role`
+            ) VALUES
+        (
+            #{login_name},
+            #{name},
+            #{login_pwd},
+            now(),
+            #{user_id},
+            #{company_id},
+            #{department_id},
+            #{job_number},
+            #{account_user_id},
+            1
+        )
+    </insert>
+
+    <!-- 添加web user表 -->
+    <insert id="addWebUser" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `user` (`uname`, `name`, `pwd`, `reg_time`, `update_time`) VALUES
+        (
+            #{login_name},
+            #{name},
+            #{login_pwd},
+            now(),
+            now()
+        )
+    </insert>
+
+    <!-- 添加account user表 -->
+    <insert id="addAccountUser" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `account_user` (
+            `sex`,`nation`,`type`,`id_number`,`service_years`,`phone`,`e_mail`,`position`, `political_outlook`,`entry_date`,
+            `confirmation_date`, `native_place`,`contact_address`,`marital_status`,`father_name`,`father_phone`,`father_work_unit`,`spouse_name`,
+            `spouse_phone`,`spouse_work_unit`,`mother_name`,`mother_phone`,`mother_work_unit`,`university`,`highest_education`,
+            `major`,`remarks`,`photo`
+        )
+        VALUES
+            (
+                #{sex}, #{nation}, #{type}, #{id_number}, #{service_years}, #{phone}, #{e_mail}, #{position}, #{political_outlook}, #{entry_date},
+                #{confirmation_date}, #{native_place}, #{contact_address}, #{marital_status}, #{father_name}, #{father_phone},  #{father_work_unit},
+                #{spouse_name}, #{spouse_phone}, #{spouse_work_unit}, #{mother_name}, #{mother_phone}, #{mother_work_unit},  #{university},  #{highest_education},
+                 #{major},  #{remarks},  #{photo}
+            )
+    </insert>
+
+    <!-- 添加web端用户和项目关联表-->
+    <insert id="addWebUserProjectRelation" parameterType="java.util.HashMap">
+        INSERT INTO `user_project_relation` (`uid`, `project_id`) VALUES
+        (
+            #{user_id},
+            #{project_id}
+        )
+    </insert>
+
+    <!-- 添加web端用户和角色关联表-->
+    <insert id="addWebUserRoleRelation" parameterType="java.util.HashMap">
+        INSERT INTO `rbac_user_role_relation` (`uid`, `rid`) VALUES
+        (
+            #{user_id},
+            #{role_id}
+        )
+    </insert>
+
+    <!-- 添加技能证书 -->
+    <insert id="addCertificate" parameterType="java.util.HashMap">
+        INSERT INTO `account_user_certificate` (`account_user_id`, `name`, `review_date`, `url`) VALUES
+        <foreach collection ="certificates" item="certificate" index= "index" separator =",">
+            (
+                #{account_user_id},
+                #{certificate.name},
+                #{certificate.review_date},
+                #{certificate.url}
+            )
+        </foreach >
+
+    </insert>
+
+    <!-- 删除用户角色关联表 -->
+    <delete id="deleteUserRoleRelation" parameterType="java.util.HashMap">
+        DELETE FROM rbac_user_role_relation WHERE uid = #{webUserId}
+    </delete>
+
+    <!-- 删除用户项目关联表 -->
+    <delete id="deleteUserProjectRelation" parameterType="java.util.HashMap">
+        DELETE FROM user_project_relation WHERE uid = #{webUserId}
+    </delete>
+
+    <!-- 删除web 用户表 -->
+    <delete id="deleteWebUser" parameterType="java.util.HashMap">
+        DELETE FROM user WHERE id = #{webUserId}
+    </delete>
+
+    <!-- 删除account 用户表 -->
+    <delete id="deleteAccountUser" parameterType="java.util.HashMap">
+        DELETE FROM account_user WHERE id = #{account_user_id}
+    </delete>
+
+    <!-- 删除人员下所有技能证书 -->
+    <delete id="deleteUserCertificate" parameterType="java.util.HashMap">
+        DELETE FROM account_user_certificate WHERE account_user_id = #{account_user_id}
+    </delete>
+
+    <!-- 删除app 用户表 -->
+    <delete id="deleteAppUser" parameterType="java.util.HashMap">
+        DELETE FROM app_register_user WHERE id = #{appUserId}
+    </delete>
+
+    <!-- 修改用户角色关联表 -->
+    <update id="updateUserRoleRelation" parameterType="java.util.HashMap">
+        UPDATE `rbac_user_role_relation`
+        SET
+            `rid` = #{role_id}
+        WHERE
+            `uid` = #{webUserId}
+    </update>
+
+    <!-- 修改用户项目关联表 -->
+    <update id="updateUserProjectRelation" parameterType="java.util.HashMap">
+        UPDATE `user_project_relation`
+        SET
+            `project_id` = #{project_id}
+        WHERE
+            `uid` = #{webUserId}
+    </update>
+
+    <!-- 修改web 用户表 -->
+    <update id="updateWebUser" parameterType="java.util.HashMap">
+        UPDATE `user`
+        <set>
+            <if test="login_name != null">`uname`=#{login_name},</if>
+            <if test="name != null">`name`=#{name},</if>
+            <if test="login_pwd != null">`pwd`=#{login_pwd},</if>
+        </set>
+        WHERE
+            `id` = #{webUserId}
+    </update>
+
+    <!-- 修改account 用户表 -->
+    <update id="updateAccountUser" parameterType="java.util.HashMap">
+        UPDATE `account_user`
+        <set>
+            <if test="sex != null">`sex`=#{sex},</if>
+            <if test="nation != null">`nation`=#{nation},</if>
+            <if test="type != null">`type`=#{type},</if>
+            <if test="id_number != null">`id_number`=#{id_number},</if>
+            <if test="service_years != null">`service_years`=#{service_years},</if>
+            <if test="phone != null">`phone`=#{phone},</if>
+            <if test="e_mail != null">`e_mail`=#{e_mail},</if>
+            <if test="position != null">`position`=#{position},</if>
+            <if test="political_outlook != null">`political_outlook`=#{political_outlook},</if>
+            <if test="entry_date != null">`entry_date`=#{entry_date},</if>
+            <if test="confirmation_date != null">`confirmation_date`=#{confirmation_date},</if>
+            <if test="native_place != null">`native_place`=#{native_place},</if>
+            <if test="contact_address != null">`contact_address`=#{contact_address},</if>
+            <if test="marital_status != null">`marital_status`=#{marital_status},</if>
+            <if test="father_name != null">`father_name`=#{father_name},</if>
+            <if test="father_phone != null">`father_phone`=#{father_phone},</if>
+            <if test="father_work_unit != null">`father_work_unit`=#{father_work_unit},</if>
+            <if test="spouse_name != null">`spouse_name`=#{spouse_name},</if>
+            <if test="spouse_phone != null">`spouse_phone`=#{spouse_phone},</if>
+            <if test="spouse_work_unit != null">`spouse_work_unit`=#{spouse_work_unit},</if>
+            <if test="mother_name != null">`mother_name`=#{mother_name},</if>
+            <if test="mother_phone != null">`mother_phone`=#{mother_phone},</if>
+            <if test="mother_work_unit != null">`mother_work_unit`=#{mother_work_unit},</if>
+            <if test="university != null">`university`=#{university},</if>
+            <if test="highest_education != null">`highest_education`=#{highest_education},</if>
+            <if test="major != null">`major`=#{major},</if>
+            <if test="remarks != null">`remarks`=#{remarks},</if>
+            <if test="photo != null">`photo`=#{photo},</if>
+        </set>
+        WHERE
+            `id` = #{account_user_id}
+    </update>
+
+    <!-- 修改app 用户表 -->
+    <update id="updateAppUser" parameterType="java.util.HashMap">
+        UPDATE `app_register_user`
+        <set>
+            <if test="login_name != null">`phone`=#{login_name},</if>
+            <if test="name != null">`name`=#{name},</if>
+            <if test="login_pwd != null">`pwd`=#{login_pwd},</if>
+            <if test="company_id != null">`company_id`=#{company_id},</if>
+            <if test="department_id != null">`department_id`=#{department_id},</if>
+            <if test="job_number != null">`job_number`=#{job_number},</if>
+        </set>
+        WHERE
+        `id` = #{appUserId}
+    </update>
+
+
+
+
+    <!--    #####################提醒事项###############################-->
+    <!-- 获取提醒事项列表数据 -->
+    <select id="getReminderList" resultType="java.util.HashMap">
+        SELECT
+            aur.id,
+            aru.`name`,
+            au.photo,
+            oc.cname,
+            CONCAT( od.dname, "---", au.position ) position,
+            au.phone,
+            aur.reminder_content,
+            ( SELECT a.`name` FROM app_register_user a WHERE a.id = aur.add_by LIMIT 1 ) AS add_user,
+            (
+            SELECT
+                role_name
+            FROM
+                rbac_user_role ur
+                LEFT JOIN rbac_user_role_relation urr ON ur.id = urr.rid
+            WHERE
+                urr.uid = ( SELECT user_id FROM app_register_user WHERE id = aur.add_by )
+                LIMIT 1
+            ) AS add_user_role
+        FROM
+            account_user_reminders aur
+            LEFT JOIN app_register_user aru ON aur.reminder_user_id = aru.id
+            LEFT JOIN account_user au ON aru.account_user_id = au.id
+            LEFT JOIN organizational_company oc ON aru.company_id = oc.id
+            LEFT JOIN organizational_department od ON aru.department_id = od.id
+            LEFT JOIN user_project_relation upr ON aru.user_id = upr.uid
+        WHERE
+            upr.project_id = #{project_id}
+            <if test="company_id != null and company_id !='' and company_id != 0 and company_id != '0'">
+                AND aru.company_id = #{company_id}
+            </if>
+            <if test="department_id != null and department_id !='' and department_id != 0 and department_id != '0'">
+                AND aru.department_id = #{department_id}
+            </if>
+            <if test="name != null and name !=''">
+                AND aru.`name` like CONCAT('%',#{name},'%')
+            </if>
+            <if test="create_at != null and create_at !=''">
+                AND date_format( aur.create_at, '%Y-%m-%d' ) BETWEEN #{startTime} AND #{endTime}
+            </if>
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 获取提醒事项列表->count -->
+    <select id="getReminderListCount" resultType="java.lang.Integer">
+        SELECT
+            count(aur.id)
+        FROM
+            account_user_reminders aur
+            LEFT JOIN app_register_user aru ON aur.reminder_user_id = aru.id
+            LEFT JOIN account_user au ON aru.account_user_id = au.id
+            LEFT JOIN organizational_company oc ON aru.company_id = oc.id
+            LEFT JOIN organizational_department od ON aru.department_id = od.id
+            LEFT JOIN user_project_relation upr ON aru.user_id = upr.uid
+        WHERE
+            upr.project_id = #{project_id}
+            <if test="company_id != null and company_id !='' and company_id != 0 and company_id != '0'">
+                AND aru.company_id = #{company_id}
+            </if>
+            <if test="department_id != null and department_id !='' and department_id != 0 and department_id != '0'">
+                AND aru.department_id = #{department_id}
+            </if>
+            <if test="name != null and name !=''">
+                AND aru.`name` like CONCAT('%',#{name},'%')
+            </if>
+            <if test="create_at != null and create_at !=''">
+                AND date_format( aur.create_at, '%Y-%m-%d' ) BETWEEN #{startTime} AND #{endTime}
+            </if>
+    </select>
+
+    <!-- 根据id获取单个提醒事项 -->
+    <select id="getReminderById" resultType="java.util.HashMap">
+        SELECT
+            u.company_id,
+            u.department_id,
+            u.id AS user_id,
+            aus.reminder_content,
+            aus.start_date,
+            aus.end_date
+        FROM
+            account_user_reminders aus
+            LEFT JOIN app_register_user u ON aus.reminder_user_id = u.id
+        WHERE
+            aus.id = #{id}
+    </select>
+
+    <!-- 获取公司部门下的人员 -->
+    <select id="getReminderUsers" resultType="java.util.HashMap">
+        SELECT
+            u.id AS `value`,
+            u.`name` AS label
+        FROM
+            app_register_user u
+            LEFT JOIN user_project_relation upr ON upr.uid = u.user_id
+        WHERE
+            upr.project_id = #{project_id}
+            AND account_user_id IS NOT NULL
+            <if test="company_id != null and company_id !='' and company_id != 0 and company_id != '0'">
+                AND company_id = #{company_id}
+            </if>
+            <if test="department_id != null and department_id !='' and department_id != 0 and department_id != '0'">
+                AND department_id = #{department_id}
+            </if>
+    </select>
+
+    <!-- 新增提醒事项 -->
+    <insert id="addReminder" parameterType="java.util.HashMap">
+        INSERT INTO `account_user_reminders` ( `reminder_user_id`, `add_by`, `reminder_content`, `start_date`, `end_date`, `create_at` )
+        VALUES
+            ( #{reminder_user_id}, #{add_by}, #{reminder_content}, #{start_date}, #{end_date}, now() )
+    </insert>
+
+    <!-- 修改提醒事项 -->
+    <update id="updateReminder" parameterType="java.util.HashMap">
+        UPDATE `account_user_reminders`
+        <set>
+            <if test="reminder_user_id != null">`reminder_user_id`=#{reminder_user_id},</if>
+            <if test="reminder_content != null">`reminder_content`=#{reminder_content},</if>
+            <if test="start_date != null">`start_date`=#{start_date},</if>
+            <if test="end_date != null">`end_date`=#{end_date},</if>
+        </set>
+        WHERE
+            `id` = #{id}
+    </update>
+
+    <!-- 删除提醒事项 -->
+    <delete id="deleteReminder" parameterType="java.util.HashMap">
+        DELETE FROM `account_user_reminders` WHERE `id` = #{id}
+    </delete>
+
+
+
+
+<!--########################数据统计##################################-->
+    <!-- 男女比例 -->
+    <select id="getSexRatioChart" resultType="java.util.HashMap">
+        SELECT
+        CASE
+                au.sex
+                WHEN '1' THEN
+                '男' ELSE '女'
+            END `name`,
+            count( au.id ) AS `value`
+        FROM
+            app_register_user aru
+            JOIN user_project_relation upr ON aru.user_id = upr.uid
+            JOIN account_user au ON aru.account_user_id = au.id
+        WHERE
+            upr.project_id = #{project_id}
+            AND aru.account_user_id IS NOT NULL
+            AND date_format(au.entry_date,'%Y') = #{year}
+        GROUP BY
+            au.sex
+    </select>
+
+    <!-- 政治面貌比例 -->
+    <select id="getPoliticalOutlookRatioChart" resultType="java.util.HashMap">
+        SELECT
+            au.political_outlook AS `name`,
+            count( au.id ) AS `value`
+        FROM
+            app_register_user aru
+            JOIN user_project_relation upr ON aru.user_id = upr.uid
+            JOIN account_user au ON aru.account_user_id = au.id
+        WHERE
+            upr.project_id = #{project_id}
+            AND aru.account_user_id IS NOT NULL
+            AND date_format(au.entry_date,'%Y') = #{year}
+        GROUP BY
+            au.political_outlook
+    </select>
+
+    <!-- 人员新增趋势 -->
+    <select id="getUserAddTrendChart" resultType="java.util.HashMap">
+        SELECT
+            CASE
+                date_format( au.entry_date, '%c' )
+                WHEN '1' THEN'一月'
+                WHEN '2' THEN'二月'
+                WHEN '3' THEN'三月'
+                WHEN '4' THEN'四月'
+                WHEN '5' THEN'五月'
+                WHEN '6' THEN'六月'
+                WHEN '7' THEN'七月'
+                WHEN '8' THEN'八月'
+                WHEN '9' THEN'九月'
+                WHEN '10' THEN'十月'
+                WHEN '11' THEN'十一月'
+                WHEN '12' THEN'十二月'
+            END `date`,
+            CASE
+                au.sex
+                WHEN '1' THEN
+                '男' ELSE '女'
+            END sex,
+            count( au.id ) AS `value`
+        FROM
+            app_register_user aru
+            JOIN user_project_relation upr ON aru.user_id = upr.uid
+            JOIN account_user au ON aru.account_user_id = au.id
+        WHERE
+            upr.project_id = #{project_id}
+            AND aru.account_user_id IS NOT NULL
+            AND date_format( au.entry_date, '%Y' ) = #{year}
+
+        GROUP BY
+            `date`,
+            au.sex
+    </select>
+
+    <!-- 人员类型 -->
+    <select id="getUserTypeChart" resultType="java.util.HashMap">
+        SELECT
+            au.type AS `name`,
+            count( au.id ) AS `value`
+        FROM
+            app_register_user aru
+            JOIN user_project_relation upr ON aru.user_id = upr.uid
+            JOIN account_user au ON aru.account_user_id = au.id
+        WHERE
+            upr.project_id = #{project_id}
+            AND aru.account_user_id IS NOT NULL
+            AND date_format(au.entry_date,'%Y') = #{year}
+        GROUP BY
+            au.type
+    </select>
+
+    <!-- 最高学历 -->
+    <select id="getHighestEducationChart" resultType="java.util.HashMap">
+        SELECT
+            au.highest_education AS `name`,
+            count( au.id ) AS `value`
+        FROM
+            app_register_user aru
+            JOIN user_project_relation upr ON aru.user_id = upr.uid
+            JOIN account_user au ON aru.account_user_id = au.id
+        WHERE
+            upr.project_id = #{project_id}
+            AND aru.account_user_id IS NOT NULL
+            AND date_format(au.entry_date,'%Y') = #{year}
+        GROUP BY
+            au.highest_education
+    </select>
+
+</mapper>

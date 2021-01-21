@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.ElcmAnalysisDao">
+
+    <!-- 故障紧急程度 -->
+    <select id="getMalUrgencyCount" resultType="java.util.HashMap">
+       SELECT m.urgency,COUNT(urgency) as urgency_count
+       FROM `elcm_malfunction` m
+       INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        WHERE m.project_id=#{project_id}
+        <if test="is_repair != null and is_repair != ''">
+            and m.is_repair=#{is_repair}
+        </if>
+        <if test="device_type_id != null and device_type_id != ''">
+            and d.device_type_id in
+            <foreach collection="device_type_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        <if test="device_id != null and device_id != ''">
+            and m.device_id in
+            <foreach collection="device_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        <if test="begin_time != null and begin_time != '' and  end_time != null  and end_time != ''">
+            and (m.report_time between #{begin_time} and #{end_time})
+        </if>
+       GROUP BY urgency
+    </select>
+
+    <!-- 故障次数 -->
+    <select id="getMalCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) as mal_count
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        WHERE m.project_id=#{project_id}
+        <if test="is_repair != null and is_repair != ''">
+            and m.is_repair=#{is_repair}
+        </if>
+        <if test="device_type_id != null and device_type_id != ''">
+            and d.device_type_id in
+            <foreach collection="device_type_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        <if test="device_id != null and device_id != ''">
+            and m.device_id in
+            <foreach collection="device_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        <if test="begin_time != null and begin_time != '' and  end_time != null  and end_time != ''">
+            and (m.report_time between #{begin_time} and #{end_time})
+        </if>
+    </select>
+
+    <!-- 平均维修时间 -->
+    <select id="getMalRepairAverageTime" resultType="java.lang.Double">
+        SELECT IFNULL(AVG(TIMESTAMPDIFF(HOUR,report_time,repair_time)),0) as average_time
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        WHERE m.is_repair=1 AND m.repair_status=6
+        AND m.project_id=#{project_id}
+        <if test="device_type_id != null and device_type_id != ''">
+            and d.device_type_id in
+            <foreach collection="device_type_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        <if test="device_id != null and device_id != ''">
+            and m.device_id in
+            <foreach collection="device_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        <if test="begin_time != null and begin_time != '' and  end_time != null  and end_time != ''">
+            and (m.report_time between #{begin_time} and #{end_time})
+        </if>
+    </select>
+
+    <!-- 故障 维修 各个状态次数 -->
+    <select id="getMalRepairStatusCount" resultType="java.util.HashMap">
+        SELECT COUNT(repair_status) as status_count,repair_status
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        WHERE m.is_repair=1 AND m.project_id=#{project_id}
+        <if test="device_type_id != null and device_type_id != ''">
+            and d.device_type_id in
+            <foreach collection="device_type_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        <if test="device_id != null and device_id != ''">
+            and m.device_id in
+            <foreach collection="device_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        <if test="begin_time != null and begin_time != '' and  end_time != null  and end_time != ''">
+            and (m.report_time between #{begin_time} and #{end_time})
+        </if>
+        GROUP BY repair_status
+    </select>
+
+
+
+    <!-- 故障 维修 各个设备次数 -->
+    <select id="getDeviceMalCount" resultType="java.util.Map">
+       SELECT d.device_name as xAxis,IFNULL(m.mal_count,0) as yAxis FROM `elcm_device_info` d
+        LEFT JOIN (
+        SELECT COUNT(*) as mal_count,d.device_name,m.device_id FROM elcm_malfunction m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        WHERE m.project_id=#{project_id}
+        <if test="device_id != null and device_id != ''">
+            and m.device_id in
+            <foreach collection="device_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        <if test="begin_time != null and begin_time != '' and  end_time != null  and end_time != ''">
+            and (m.report_time between #{begin_time} and #{end_time})
+        </if>
+        GROUP BY m.device_id
+        ORDER BY mal_count DESC
+        )m on d.id=m.device_id
+        WHERE d.project_id=#{project_id}
+        <if test="device_id != null and device_id != ''">
+            and d.id in
+            <foreach collection="device_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+    </select>
+    <!-- 故障 维修 各个状态次数 -->
+    <select id="getDeviceTypeMalCount" resultType="java.util.Map">
+        SELECT t.device_type_name as xAxis,IFNULL(m.mal_count,0) as yAxis FROM `elcm_device_type` t
+        LEFT JOIN (
+        SELECT COUNT(*) as mal_count,d.device_type_id FROM elcm_malfunction m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        WHERE m.project_id=#{project_id}
+        <if test="device_type_id != null and device_type_id != ''">
+            and d.device_type_id in
+            <foreach collection="device_type_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        <if test="begin_time != null and begin_time != '' and  end_time != null  and end_time != ''">
+            and (m.report_time between #{begin_time} and #{end_time})
+        </if>
+        GROUP BY d.device_type_id
+        ORDER BY mal_count DESC
+        )m on t.device_type_id=m.device_type_id
+        WHERE 1=1
+        <if test="device_type_id != null and device_type_id != ''">
+            and t.device_type_id in
+            <foreach collection="device_type_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+    </select>
+
+
+
+
+    <!-- 故障 月 次数-->
+    <select id="getMalMonthCount" resultType="java.util.Map">
+        SELECT COUNT(*) as count,substring_index(m.report_time,'-',2) as time FROM `elcm_malfunction` m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        WHERE m.project_id=#{project_id}
+        <if test="is_repair != null and is_repair != ''">
+            and m.is_repair =#{is_repair}
+        </if>
+        <if test="begin_time != null and begin_time != '' and  end_time != null  and end_time != ''">
+            and (m.report_time between #{begin_time} and #{end_time})
+        </if>
+        <if test="device_type_id != null and device_type_id != ''">
+            and d.device_type_id in
+            <foreach collection="device_type_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        <if test="device_id != null and device_id != ''">
+            and m.device_id in
+            <foreach collection="device_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        GROUP BY time
+    </select>
+    <!-- 故障 年 次数-->
+    <select id="getMalYearCount" resultType="java.util.Map">
+        SELECT COUNT(*) as count,substring_index(m.report_time,'-',1) as time FROM `elcm_malfunction` m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        WHERE m.project_id=#{project_id}
+        <if test="is_repair != null and is_repair != ''">
+            and m.is_repair =#{is_repair}
+        </if>
+        <if test="begin_time != null and begin_time != '' and  end_time != null  and end_time != ''">
+            and (m.report_time between #{begin_time} and #{end_time})
+        </if>
+        <if test="device_type_id != null and device_type_id != ''">
+            and d.device_type_id in
+            <foreach collection="device_type_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        <if test="device_id != null and device_id != ''">
+            and m.device_id in
+            <foreach collection="device_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        GROUP BY time
+    </select>
+    <!-- 故障 周 次数-->
+    <select id="getMalWeekCount" resultType="java.util.Map">
+        SELECT  date_format(m.report_time, '%x%v') time,COUNT(*) AS count  FROM elcm_malfunction m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        WHERE m.project_id=#{project_id}
+        <if test="is_repair != null and is_repair != ''">
+            and m.is_repair =#{is_repair}
+        </if>
+        <if test="begin_time != null and begin_time != '' and  end_time != null  and end_time != ''">
+            and (m.report_time between #{begin_time} and #{end_time})
+        </if>
+        <if test="device_type_id != null and device_type_id != ''">
+            and d.device_type_id in
+            <foreach collection="device_type_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        <if test="device_id != null and device_id != ''">
+            and m.device_id in
+            <foreach collection="device_list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        GROUP BY time
+    </select>
+
+
+</mapper>

@@ -1,0 +1,231 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.common.dao.SchedulingDao">
+
+    <!-- 维保工单 获取最后一个单号的末尾三位数 -->
+    <select id="elcmTaskRecordNumber" resultType="java.lang.String">
+        SELECT right(r.record_number, 3) as record_number
+        FROM `elcm_device_task_record` r
+        INNER JOIN `elcm_device_task_relation` tr on tr.id=r.relation_id
+        INNER JOIN `elcm_device_task` t on tr.task_id=t.id
+        WHERE t.project_id=#{project_id}
+        <if test="number != null and number != ''">
+            and r.record_number like CONCAT('%',#{number},'%')
+        </if>
+        ORDER BY r.record_number DESC
+        LIMIT 1
+    </select>
+
+    <!-- 获取所有数据-->
+    <select id="getElcmTaskRelation" resultType="com.sl.common.entity.ElcmTaskRecord">
+          SELECT r.id relationId,t.begin_time beginTime,t.end_time endTime,t.is_repeat isRepeat,t.is_start isStart,
+          m.maintain_intervals maintainIntervals,m.maintain_intervals_unit maintainIntervalsUnit,
+          dtr.original_plan_start_time planStartTime
+            FROM `elcm_device_task_relation` r
+            INNER JOIN `elcm_device_task` t on r.task_id=t.id
+            INNER JOIN `elcm_maintain` m on r.maintain_id=m.id
+            LEFT JOIN
+            (SELECT * FROM(
+            SELECT original_plan_start_time,relation_id  FROM `elcm_device_task_record`  ORDER BY  plan_start_time DESC
+            )tr GROUP BY relation_id)dtr on dtr.relation_id=r.id
+            WHERE t.project_id=#{project_id} AND t.is_start=1 AND t.is_repeat=1 AND t.status in (4,6)
+    </select>
+
+
+
+    <insert id="insertAllElcmTaskRecord" parameterType="java.util.HashMap">
+        insert into `elcm_device_task_record`
+        (
+        `plan_start_time`,
+        `plan_end_time`,
+        `original_plan_start_time`,
+        `status`,
+        `relation_id`,
+        `record_number`
+        )
+        values
+        <foreach collection ="list" item="record" index= "index" separator =",">
+            (
+            #{record.plan_start_time},
+            #{record.plan_end_time},
+            #{record.original_plan_start_time},
+            #{record.status},
+            #{record.relation_id},
+            #{record.record_number}
+            )
+        </foreach >
+    </insert>
+
+    <!-- app推送-->
+    <select id="getLogsByIsPush" resultType="java.util.HashMap">
+		SELECT l.id ,
+		DATE_FORMAT(l.log_time, '%Y-%m-%d %k:%i:%s') AS log_time,
+		l.location,dt.device_type,n2.category_name,d.device_name,l.project_id FROM `logs` l
+		LEFT JOIN `alerm_category_n1` n1
+		ON n1.id=l.category
+		LEFT JOIN `alerm_category_n2` n2
+		ON n1.category2_id=n2.id
+		LEFT JOIN `alerm_category_n3` n3
+		ON n2.category3_id=n3.id
+		LEFT JOIN
+		device_type_relation rl
+		ON rl.id=l.device_type_relation_id
+		LEFT JOIN
+		device_type dt
+		ON dt.id=rl.device_type_id
+		LEFT JOIN (SELECT
+		id,`name`,"panel" AS device_type ,p.name device_name
+		FROM panel p
+		UNION
+		SELECT id,device_name,"elec_meter" AS device_type,e.desc FROM
+		elec_meter e
+		UNION SELECT id,device_name,"water_meter" AS
+		device_type,w.desc FROM
+		`water_meter` w
+		UNION SELECT
+		id,device_name,"gas_meter" AS device_type ,g.desc FROM
+		`gas_meter` g
+		UNION SELECT
+		id,device_name,"fire_detector" AS device_type ,f.desc FROM
+		`fire_detector` f
+		UNION SELECT id,device_name,"temperature_controller" AS
+		device_type,tc.desc
+		FROM `temperature_controller` tc) d
+		ON
+		d.device_type=dt.device_type
+		AND d.id=rl.device_id
+		WHERE is_push=0
+		AND n3.category_code!='communication_alarm'
+        AND project_id=#{project_id}
+	</select>
+
+    <update id="setLogsPushed">
+		UPDATE `logs` SET is_push=1
+		WHERE id=#{id}
+	</update>
+
+    <!-- 收缴费!!!!-->
+    <select id="getElecSettingFutureByProjectId" resultType="java.util.HashMap">
+	SELECT t.type_id,t.charge_type,t.parity_price,t.peak_price,t.plain_price,t.valley_price,t.second_price,t.third_price,t.set_time,t.create_at
+     FROM
+	(SELECT f.* FROM `sjf_house_type_history_future` f INNER JOIN `sjf_house_type_now` n ON f.type_id=n.id
+	WHERE f.set_time = #{today} AND n.project_id=#{project_id} ORDER BY f.create_at DESC)t
+	 GROUP BY t.type_id
+    </select>
+
+    <update id="updateAllElecSetting" parameterType="java.util.HashMap">
+        update `sjf_house_type_now`
+        <set>
+            <if test="charge_type != null">charge_type=#{charge_type},</if>
+            <if test="parity_price != null">parity_price=#{parity_price},</if>
+            <if test="peak_price != null">peak_price=#{peak_price},</if>
+            <if test="plain_price != null">plain_price=#{plain_price},</if>
+            <if test="valley_price != null">valley_price=#{valley_price},</if>
+            <if test="second_price != null">second_price=#{second_price},</if>
+            <if test="third_price != null">third_price=#{third_price},</if>
+            <if test="set_time != null">set_time=#{set_time}</if>
+        </set>
+        where id=#{type_id}
+    </update>
+
+    <select id="getLadderFutureByProjectId" resultType="java.util.HashMap">
+      SELECT l.first_ladder,l.second_ladder,l.set_time,l.project_id,l.create_at FROM
+      (SELECT * FROM `sjf_charge_ladder_history_future` WHERE set_time =#{today} AND project_id=#{project_id} ORDER BY create_at DESC)l
+      GROUP BY l.project_id
+    </select>
+
+    <update id="updateAllLadder" parameterType="java.util.HashMap">
+        update `sjf_charge_ladder_now`
+        <set>
+            <if test="first_ladder != null">first_ladder=#{first_ladder},</if>
+            <if test="second_ladder != null">second_ladder=#{second_ladder},</if>
+            <if test="set_time != null">set_time=#{set_time}</if>
+        </set>
+        where project_id=#{project_id}
+    </update>
+
+    <select id="getFpgFutureByProjectId" resultType="com.sl.common.entity.SjfFpgProjectSet">
+      SELECT f.peak,f.plain,f.valley,f.set_time setTime,f.project_id projectId,f.create_at createAt FROM
+      (SELECT * FROM `sjf_charge_fpg_history_future` WHERE set_time =#{today} AND project_id=#{project_id} ORDER BY create_at DESC)f
+       GROUP BY f.project_id
+    </select>
+
+    <update id="updateAllFpg" parameterType="com.sl.common.entity.SjfFpgProjectSet">
+        update `sjf_charge_fpg_now`
+        <set>
+            <if test="peak != null">peak=#{peak},</if>
+            <if test="plain != null">plain=#{plain},</if>
+            <if test="valley != null">valley=#{valley},</if>
+            <if test="setTime != null">set_time=#{setTime}</if>
+        </set>
+        where project_id=#{projectId}
+    </update>
+
+    <select id="getFpgProjectSet" resultType="java.util.HashMap">
+      SELECT * FROM `project_ep_peak_plain_valley_time_set`
+      where project_id=#{project_id} AND time_type=#{time_type}
+    </select>
+
+    <!-- 新增峰平谷脚本设置-->
+    <insert id="addFpgProjectSet" parameterType="java.util.HashMap">
+        insert into `project_ep_peak_plain_valley_time_set`
+        (project_id,time_type,time_str)
+        values
+            (
+            #{project_id},
+            #{time_type},
+            #{time_str}
+            )
+    </insert>
+
+    <!-- 修改峰平谷脚本设置-->
+    <update id="updateFpgProjectSet" parameterType="java.util.HashMap">
+        update `project_ep_peak_plain_valley_time_set`
+        <set>
+            <if test="time_str != null">time_str=#{time_str}</if>
+        </set>
+        where project_id=#{project_id} AND time_type=#{time_type}
+    </update>
+
+    <select id="getMeterDataByProject" resultType="java.util.HashMap">
+        SELECT h.id house_id,h.house_name,h.phone,h.elec_meter_number,h.check_in_time,h.check_in_ep,
+        h.cumulative_amount,t.charge_type,t.parity_price,t.peak_price,t.plain_price,
+        t.valley_price,t.second_price,t.third_price,h.elec_meter_id,m.tg_id tg,m.device_name,g.sn
+        FROM `sjf_house` h
+        LEFT JOIN `sjf_house_type_now` t on h.type_id=t.id
+        LEFT JOIN `elec_meter` m on h.elec_meter_id=m.id
+        LEFT JOIN `tg_info` g on m.tg_id=g.TG_RTDB
+        WHERE 1=1
+        <if test="is_all == null">
+            and  h.is_check_in=1
+        </if>
+        <if test="project_id != null and project_id !=''">
+            and h.project_id=#{project_id}
+        </if>
+        <if test="tg != null and tg !=''">
+            and m.tg_id=#{tg}
+        </if>
+    </select>
+
+
+
+    <!-- 巡检列表 -->
+    <select id="getAllFirePatrolList" resultType="java.util.HashMap">
+		SELECT p.id patrol_id,p.patrol_type,p.begin_time,p.end_time FROM `fire_patrol` p  WHERE project_id=#{project_id}
+	</select>
+
+
+    <insert id="addAllFirePatrolLog" parameterType="java.util.HashMap">
+        insert into `fire_patrol_log`
+        (patrol_id,patrol_date)
+        values
+        <foreach collection ="list" item="map" index= "index" separator =",">
+            (
+            #{map.patrol_id},
+            #{map.patrol_date}
+            )
+        </foreach >
+    </insert>
+
+</mapper>

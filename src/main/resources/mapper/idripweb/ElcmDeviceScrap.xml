@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.ElcmDeviceScrapDao">
+
+    <!-- 报废状态查询 -->
+    <select id="getScrapStatus" resultType="java.util.HashMap">
+        SELECT status,status_name
+        FROM `elcm_device_scrap_status`
+    </select>
+    <!-- 报废列表查询 -->
+    <select id="getScrapList" resultType="java.util.HashMap">
+        SELECT ds.id scrap_id,ds.scrap_number,ds.disposal_mode,ds.disposal_amount,
+        d.id device_id,a.name assets_name,d.device_model,d.device_number,d.device_name,d.install_position,t.device_type_name,
+        ds.apply_reason,u.`name` as apply_user,
+        DATE_FORMAT(ds.apply_time, '%Y-%m-%d %H:%i:%s') as apply_time,ds.`status`,s.status_name
+        FROM `elcm_device_scrap` ds
+        INNER JOIN `user` u on ds.apply_user=u.id
+        INNER JOIN `elcm_device_info` d on ds.device_id=d.id
+        INNER JOIN `elcm_assets_type` a on d.assets_id=a.id
+        INNER JOIN `elcm_device_type` t on d.device_type_id=t.device_type_id
+        INNER JOIN `elcm_device_scrap_status` s on s.`status`=ds.`status`
+        WHERE d.project_id=#{project_id}
+        <if test="status != null and status != ''and status != 0">
+        and ds.status = #{status}
+        </if>
+        <if test="device_number != null and device_number != ''">
+        and d.device_number like CONCAT('%',#{device_number},'%')
+        </if>
+        <if test="apply_user != null and apply_user != ''">
+            and u.`name` like CONCAT('%',#{apply_user},'%')
+        </if>
+        ORDER BY ds.apply_time DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+    <select id="getScrapListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM `elcm_device_scrap` ds
+        INNER JOIN `user` u on ds.apply_user=u.id
+        INNER JOIN `elcm_device_info` d on ds.device_id=d.id
+        INNER JOIN `elcm_assets_type` a on d.assets_id=a.id
+        INNER JOIN `elcm_device_type` t on d.device_type_id=t.device_type_id
+        INNER JOIN `elcm_device_scrap_status` s on s.`status`=ds.`status`
+        WHERE d.project_id=#{project_id}
+        <if test="status != null and status != ''and status != 0">
+        and ds.status = #{status}
+        </if>
+        <if test="device_number != null and device_number != ''">
+        and d.device_number like CONCAT('%',#{device_number},'%')
+        </if>
+        <if test="apply_user != null and apply_user != ''">
+            and u.`name` like CONCAT('%',#{apply_user},'%')
+        </if>
+    </select>
+
+
+    <select id="getScrapDeciceCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM `elcm_device_scrap` ds
+        WHERE ds.status !=4 AND ds.device_id=#{device_id}
+    </select>
+
+    <!-- 修改报废状态 -->
+    <update id="updateScrapStatus" parameterType="java.util.HashMap">
+        update `elcm_device_scrap`
+        <set>
+            <if test="status != null">status=#{status}</if>
+        </set>
+        WHERE id=#{scrap_id}
+    </update>
+
+
+    <!-- 修改设备状态 -->
+    <update id="updateDeviceStatus" parameterType="java.util.HashMap">
+        update `elcm_device_info`
+        <set>
+            <if test="status_id != null">status_id=#{status_id}</if>
+        </set>
+        WHERE id=#{device_id}
+    </update>
+
+    <!-- 修改报废 -->
+    <update id="updateScrap" parameterType="java.util.HashMap">
+        update `elcm_device_scrap`
+        <set>
+            <if test="apply_user != null">apply_user=#{apply_user},</if>
+            <if test="apply_reason != null">apply_reason=#{apply_reason},</if>
+            <if test="apply_time != null">apply_time=#{apply_time},</if>
+            <if test="status != null">status=#{status},</if>
+            <if test="device_id != null">device_id=#{device_id},</if>
+            <if test="disposal_mode != null">disposal_mode=#{disposal_mode},</if>
+            <if test="disposal_amount != null">disposal_amount=#{disposal_amount}</if>
+        </set>
+        WHERE id=#{scrap_id}
+    </update>
+
+
+    <delete id="deleteScrap">
+		delete from `elcm_device_scrap`
+		WHERE id=#{scrap_id}
+	</delete>
+
+    <!-- 新增报废-->
+    <insert id="addScrap" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="scrap_id">
+        insert into `elcm_device_scrap`
+        (scrap_number,apply_user,apply_reason,apply_time,status,project_id,device_id,disposal_mode,disposal_amount)
+        values
+            (
+            #{scrap_number},
+            #{apply_user},
+            #{apply_reason},
+			SYSDATE(),
+            #{status},
+            #{project_id},
+            #{device_id},
+            #{disposal_mode},
+            <choose>
+                <when test="disposal_amount != null and disposal_amount != ''">#{disposal_amount}</when>
+                <otherwise>null</otherwise>
+            </choose>
+            )
+    </insert>
+
+
+
+    <!-- 报废列表 -->
+    <select id="getScrapDetail" resultType="java.util.HashMap">
+        SELECT ds.id scrap_id,ds.scrap_number,t.name assets_type,ds.device_id,d.device_number,d.device_name,d.device_model,d.install_position,
+        ds.apply_reason,u.`name` as apply_user,DATE_FORMAT(ds.apply_time, '%Y-%m-%d %H:%i:%s') as apply_time,
+        ds.disposal_mode,ds.disposal_amount,ds.`status`,s.status_name
+        FROM `elcm_device_scrap` ds
+        LEFT JOIN `user` u on ds.apply_user=u.id
+        INNER JOIN `elcm_device_info` d on ds.device_id=d.id
+        INNER JOIN `elcm_assets_type` t on d.assets_id=t.id
+        INNER JOIN `elcm_device_scrap_status` s on s.`status`=ds.`status`
+        WHERE ds.id=#{scrap_id}
+    </select>
+
+</mapper>

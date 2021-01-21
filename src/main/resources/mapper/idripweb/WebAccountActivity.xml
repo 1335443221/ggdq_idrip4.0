@@ -1,0 +1,293 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.WebAccountActivityDao">
+
+    <!-- 获取所有类别 -->
+    <select id="getType" resultType="com.sl.idripapp.entity.AccountActivityTypeTree">
+      SELECT id,type_name AS typeName,parent_id AS parentId
+      FROM account_activity_type WHERE project_id=#{project_id}
+    </select>
+
+    <!-- 添加类型-->
+    <insert id="addType">
+        INSERT INTO `account_activity_type` (`type_name`,`parent_id`, `project_id`)
+        VALUES
+	    (#{type_name},#{parent_id}, #{project_id})
+    </insert>
+
+
+    <!-- 修改-->
+    <update id="updateType">
+        UPDATE `account_activity_type`
+        <set>
+            <if test="type_name!= null">type_name=#{type_name},</if>
+            <if test="parent_id!= null">parent_id=#{parent_id}</if>
+        </set>
+        where
+        id=#{id}
+    </update>
+
+    <!-- 删除-->
+    <delete id="deleteType">
+        DELETE FROM `account_activity_type`
+        WHERE id in
+            <foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+    </delete>
+    <!-- 删除-->
+    <update id="deleteActivityByType">
+        UPDATE `account_activity`
+        <set>
+            is_delete=1,
+            delete_time=SYSDATE()
+        </set>
+        WHERE type_id in
+            <foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+    </update>
+
+    <!-- 添加活动-->
+    <insert id="addActivity">
+        INSERT INTO `account_activity`
+        (`name`,`organizer`, `begin_time`, `end_time`, `create_by`, `create_at`,
+        `type_id`, `file`,`file_type`, `file_suffix`,`is_download`, `project_id`)
+        VALUES
+	    (#{name},#{organizer}, #{begin_time}, #{end_time}, #{user_id},SYSDATE(),
+	     #{type_id},#{file},#{file_type},#{file_suffix},#{is_download},#{project_id})
+    </insert>
+
+
+    <select id="getActivityList" resultType="java.util.HashMap">
+        SELECT a.id,a.name,a.type_id,t.type_name,a.organizer,a.begin_time,a.end_time,u.name user_name,a.file,a.file_type,CONCAT(a.file,'?attname=') as download FROM `account_activity` a
+        LEFT JOIN `user` u ON a.create_by=u.id
+        LEFT JOIN `account_activity_type` t ON a.type_id=t.id
+        WHERE a.is_delete=0 AND a.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and a.name like CONCAT('%',#{name},'%')
+        </if>
+        <if test="begin_time != null and begin_time != ''">
+            and (
+            (a.begin_time <![CDATA[<=]]> #{begin_time} and a.end_time <![CDATA[>=]]> #{begin_time})
+            or
+            (a.begin_time <![CDATA[>=]]> #{begin_time} and a.end_time <![CDATA[<=]]> #{end_time})
+            or
+            (a.begin_time <![CDATA[<=]]> #{end_time} and a.end_time <![CDATA[>=]]> #{end_time})
+            )
+        </if>
+        <if test="type != null">
+            and a.type_id in
+            <foreach collection="type" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+        ORDER BY a.create_at DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+    <select id="getActivityListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `account_activity` a
+        WHERE a.is_delete=0 AND a.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and a.name like CONCAT('%',#{name},'%')
+        </if>
+        <if test="begin_time != null and begin_time != ''">
+            and (
+            (a.begin_time <![CDATA[<=]]> #{begin_time} and a.end_time <![CDATA[>=]]> #{begin_time})
+            or
+            (a.begin_time <![CDATA[>=]]> #{begin_time} and a.end_time <![CDATA[<=]]> #{end_time})
+            or
+            (a.begin_time <![CDATA[<=]]> #{end_time} and a.end_time <![CDATA[>=]]> #{end_time})
+            )
+        </if>
+        <if test="type != null">
+            and a.type_id in
+            <foreach collection="type" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+    </select>
+
+    <!-- 修改-->
+    <update id="updateActivity">
+        UPDATE `account_activity`
+        <set>
+            <if test="name!= null">name=#{name},</if>
+            <if test="organizer!= null">organizer=#{organizer},</if>
+            <if test="begin_time!= null">begin_time=#{begin_time},</if>
+            <if test="end_time!= null">end_time=#{end_time},</if>
+            <if test="type_id!= null">type_id=#{type_id},</if>
+            <if test="file!= null">file=#{file},</if>
+            <if test="file_type!= null">file_type=#{file_type},</if>
+            <if test="file_suffix!= null">file_suffix=#{file_suffix},</if>
+            <if test="is_download!= null">is_download=#{is_download}</if>
+        </set>
+        where
+        id=#{id}
+    </update>
+
+
+    <!-- 删除-->
+    <update id="deleteActivity">
+         UPDATE `account_activity`
+        <set>
+            is_delete=1,
+            delete_time=SYSDATE()
+        </set>
+        WHERE id IN
+        <foreach collection="list"  item="item" open="(" separator="," close=")" >
+            #{item}
+        </foreach>
+    </update>
+
+
+
+    <select id="getRecycleBin" resultType="java.util.HashMap">
+        SELECT a.id,a.name,a.file_type,a.delete_time FROM `account_activity`  a
+        WHERE a.is_delete=1 AND a.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and a.name like CONCAT('%',#{name},'%')
+        </if>
+
+        <if test="begin_time != null and begin_time != ''">
+            and a.delete_time <![CDATA[>=]]> #{begin_time}
+        </if>
+        <if test="end_time != null and end_time != ''">
+            and a.delete_time <![CDATA[<=]]> #{end_time}
+        </if>
+
+        <if test="begin_time1 != null and begin_time1 != ''">
+            and (
+            (a.begin_time <![CDATA[<=]]> #{begin_time1} and a.end_time <![CDATA[>=]]> #{begin_time1})
+            or
+            (a.begin_time <![CDATA[>=]]> #{begin_time1} and a.end_time <![CDATA[<=]]> #{end_time1})
+            or
+            (a.begin_time <![CDATA[<=]]> #{end_time1} and a.end_time <![CDATA[>=]]> #{end_time1})
+            )
+        </if>
+        ORDER BY a.delete_time DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+    <select id="getRecycleBinCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `account_activity`  a
+        WHERE a.is_delete=1 AND a.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and a.name like CONCAT('%',#{name},'%')
+        </if>
+
+        <if test="begin_time != null and begin_time != ''">
+            and a.delete_time <![CDATA[>=]]> #{begin_time}
+        </if>
+        <if test="end_time != null and end_time != ''">
+            and a.delete_time <![CDATA[<=]]> #{end_time}
+        </if>
+
+        <if test="begin_time1 != null and begin_time1 != ''">
+            and (
+            (a.begin_time <![CDATA[<=]]> #{begin_time1} and a.end_time <![CDATA[>=]]> #{begin_time1})
+            or
+            (a.begin_time <![CDATA[>=]]> #{begin_time1} and a.end_time <![CDATA[<=]]> #{end_time1})
+            or
+            (a.begin_time <![CDATA[<=]]> #{end_time1} and a.end_time <![CDATA[>=]]> #{end_time1})
+            )
+        </if>
+    </select>
+
+
+
+    <!-- 修改-->
+    <update id="recovery">
+        UPDATE `account_activity`
+        <set>
+            <if test="type_id!= null">type_id=#{type_id},</if>
+            is_delete=0,
+            delete_time=null
+        </set>
+         WHERE id in
+        <foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+            #{list}
+        </foreach>
+    </update>
+
+    <delete id="deleteCompletely">
+        DELETE FROM `account_activity`
+        WHERE id in
+        <foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+            #{list}
+        </foreach>
+    </delete>
+
+
+    <!-- 添加记录-->
+    <insert id="addRecord">
+        INSERT INTO `account_activity_record` (`time`,`activity_id`, `category`)
+        VALUES
+	    (#{time},#{activity_id}, #{category})
+    </insert>
+
+
+    <select id="getRecord" resultType="java.util.Map">
+        SELECT *  FROM `account_activity_record` a
+        WHERE a.time=#{time} AND a.activity_id=#{activity_id}  AND a.category=#{category}
+        LIMIT 1
+    </select>
+
+    <!-- 添加记录-->
+    <insert id="insertRecord">
+        INSERT INTO `account_activity_record` (`count`,`time`,`activity_id`,`category`)
+        VALUES
+	    (#{count},#{time},#{activity_id},#{category})
+    </insert>
+
+    <!-- 修改-->
+    <update id="updateRecord">
+        UPDATE `account_activity_record`
+        <set>
+            <if test="count!= null">count=#{count}</if>
+        </set>
+        where id=#{id}
+    </update>
+
+
+
+    <select id="getActivityTimeStatistics" resultType="java.util.Map">
+         SELECT COUNT(*) as `count`,substring(begin_time,6,2) as `time` FROM account_activity s
+		 WHERE s.project_id=#{project_id} and s.begin_time like CONCAT('%',#{year},'%')  AND s.is_delete=0
+		 GROUP BY substring_index(begin_time,'-',2)
+    </select>
+
+    <select id="getActivityAddStatistics" resultType="java.util.Map">
+         SELECT COUNT(*) as `count`,substring(create_at,6,2) as `time` FROM account_activity s
+		 WHERE s.project_id=#{project_id} and s.create_at like CONCAT('%',#{year},'%')  AND s.is_delete=0
+		 GROUP BY substring_index(create_at,'-',2)
+    </select>
+
+    <select id="getActivityDeleteStatistics" resultType="java.util.Map">
+         SELECT COUNT(*) as `count`,substring(delete_time,6,2) as `time` FROM account_activity s
+		 WHERE s.project_id=#{project_id} and s.delete_time like CONCAT('%',#{year},'%')  AND s.is_delete=1
+		 GROUP BY substring_index(delete_time,'-',2)
+    </select>
+
+
+    <select id="getSeeStatistics" resultType="java.util.Map">
+        SELECT r.count,a.name,a.id FROM `account_activity_record` r
+        INNER JOIN `account_activity` a  ON r.activity_id=a.id
+        WHERE a.project_id=#{project_id} AND a.is_delete=0 AND r.category=1
+        AND r.time = #{date}
+        ORDER BY r.count DESC
+		LIMIT 0,10
+    </select>
+
+
+    <select id="getDownloadStatistics" resultType="java.util.Map">
+        SELECT r.count,r.activity_id id FROM `account_activity_record` r
+        WHERE r.category=2 AND r.time = #{date}
+        AND r.activity_id IN
+        <foreach collection="idList"  item="item" open="(" separator="," close=")" >
+            #{item}
+        </foreach>
+    </select>
+
+</mapper>

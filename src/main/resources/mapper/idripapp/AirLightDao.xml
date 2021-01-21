@@ -1,0 +1,389 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.AirLightDao">
+ <!-- ============================   APP 空调控制============================    -->
+    <!--&lt;!&ndash;获取指定空调设备开关标签&ndash;&gt;-->
+    <select id="getAirSwitchTagById" resultType="java.lang.String" parameterType="java.lang.String">
+        SELECT ac.switch_tag FROM `air_conditioner_meter` ac
+        WHERE ac.id=#{id}
+    </select>
+    <!-- 空调-新增定时设置-->
+    <insert id="addAirTimingSetting" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="ts_id">
+        insert into `air_conditioner_timing_setting`
+        (ac_id,start_month,start_day,start_time,end_month,end_day,end_time,create_by,create_at)
+        values
+            (
+            #{ac_id},
+            #{start_month},
+            #{start_day},
+            #{start_time},
+            #{end_month},
+            #{end_day},
+            #{end_time},
+            #{create_by},
+            SYSDATE()
+            )
+    </insert>
+
+    <!-- 空调-新增定时脚本-->
+    <insert id="addAirIntelligentControl" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="ic_id">
+        insert into `intelligent_control_ac`
+        (ac_id,ac_tag,bdate,edate,btime,etime,mode,create_user_id,create_time)
+        values
+            (
+            #{ac_id},
+            #{ac_tag},
+            #{bdate},
+            #{edate},
+            #{btime},
+            #{etime},
+            #{mode},
+            #{create_user_id},
+            SYSDATE()
+            )
+    </insert>
+
+    <!-- 空调-新增定时脚本 定时器 关联关系-->
+    <insert id="addAirRelation" parameterType="java.util.HashMap">
+        insert into `air_conditioner_tsic_relation`
+        (ts_id,ic_id)
+        values
+            (
+            #{ts_id},
+            #{ic_id}
+            )
+    </insert>
+
+    <!-- 记录-->
+    <insert id="insertAirOperationRecord" parameterType="java.util.HashMap">
+        insert into `air_conditioner_operation_record`
+        (project_id,building_id,air_id,device_desc,operation,operator,operating_time)
+        values
+            (
+            #{project_id},
+            #{building_id},
+            #{air_id},
+            #{device_desc},
+            #{operation},
+            #{operator},
+            SYSDATE()
+            )
+    </insert>
+
+    <select id="getAirTimingSetting" parameterType="java.util.Map" resultType="java.util.HashMap">
+        SELECT ts.id ts_id,ts.start_month,ts.start_day,ts.start_time,ts.end_month,ts.end_day,ts.end_time FROM `air_conditioner_timing_setting` ts
+         WHERE ts.ac_id=#{air_id}
+    </select>
+
+
+    <update id="updateAirTimingSetting" parameterType="java.util.HashMap">
+        update `air_conditioner_timing_setting`
+        <set>
+            <if test="start_month != null">start_month=#{start_month},</if>
+            <if test="start_day != null">start_day=#{start_day},</if>
+            <if test="start_time != null">start_time=#{start_time},</if>
+            <if test="end_month != null">end_month=#{end_month},</if>
+            <if test="end_day != null">end_day=#{end_day},</if>
+            <if test="end_time != null">end_time=#{end_time}</if>
+        </set>
+        where id=#{ts_id}
+    </update>
+
+    <update id="updateAirIntelligentControl" parameterType="java.util.HashMap">
+        update `intelligent_control_ac`
+        <set>
+            <if test="bdate != null">bdate=#{bdate},</if>
+            <if test="edate != null">edate=#{edate},</if>
+            <if test="btime != null">btime=#{btime},</if>
+            <if test="etime != null">etime=#{etime}</if>
+        </set>
+        where bdate  &gt;= #{begin_time} and
+        id in (SELECT ic_id from `air_conditioner_tsic_relation` where ts_id=#{ts_id})
+    </update>
+
+    <delete id="deleteAirTimingSetting">
+		delete from `air_conditioner_timing_setting`
+		where id=#{ts_id}
+	</delete>
+
+    <delete id="deleteAirIntelligentControl">
+		DELETE from `intelligent_control_ac` where id in (SELECT ic_id from `air_conditioner_tsic_relation` where ts_id=#{ts_id})
+	</delete>
+
+
+    <!-- 空调操作记录总数 -->
+    <select id="getAirOperationRecordCount" resultType="java.lang.Integer">
+        SELECT count(*) FROM `air_conditioner_operation_record` ao
+        WHERE ao.building_id=#{building_id}
+        ORDER BY ao.operating_time DESC
+    </select>
+    <!-- 空调操作记录 -->
+    <select id="getAirOperationRecord" parameterType="java.util.Map" resultType="java.util.HashMap">
+         SELECT ao.building_id,ao.air_id,ao.device_desc device_desc,ao.operation,ao.operator,ao.operating_time FROM `air_conditioner_operation_record` ao
+        WHERE ao.building_id=#{building_id}
+        ORDER BY ao.operating_time DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 空调楼信息 -->
+    <select id="getAirBuilding"  parameterType="java.util.Map" resultType="java.util.HashMap">
+        SELECT ab.id building_id,ab.building_name FROM `air_conditioner_building` ab
+        WHERE ab.project_id=#{project_id}
+        <if test="building_id != null and building_id !=''">
+            and ab.id=#{building_id}
+        </if>
+    </select>
+
+    <!-- 空调楼信息 -->
+    <select id="getAirList" parameterType="java.util.Map" resultType="java.util.HashMap">
+        SELECT ac.id air_id,ac.building_id,ac.device_name,ac.device_desc,ac.tg_name,ac.project_id,ac.factory_id,concat(ac.device_name,'_',ac.switch_tag) as tagName,
+        ac.switch_tag,0 as state FROM `air_conditioner_meter` ac
+        WHERE ac.project_id=#{project_id}
+        <if test="building_id != null and building_id !=''">
+            and ac.building_id=#{building_id}
+        </if>
+        <if test="air_id != null and air_id !=''">
+            and ac.id=#{air_id}
+        </if>
+    </select>
+
+    <!-- 通过参数获取空调信息 -->
+    <select id="getAirByParams" parameterType="java.util.Map" resultType="java.util.HashMap">
+        SELECT ac.id device_id,ac.device_desc device_name,elec_meter_id FROM `air_conditioner_meter` ac
+        WHERE 1=1
+        <if test="building_id != null and building_id !=''">
+            and ac.building_id=#{building_id}
+        </if>
+        <if test="id_list != null and id_list !=''">
+        and id IN
+        <foreach collection="id_list" item="id" index="index" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+        </if>
+    </select>
+
+    <!-- 获取标签 -->
+    <select id="getAirSwitchTag" parameterType="java.util.Map" resultType="java.util.HashMap">
+        SELECT ac.switch_tag tag_name FROM `air_conditioner_meter` ac
+        WHERE ac.project_id=#{project_id}
+        GROUP by ac.switch_tag
+    </select>
+
+
+    <!-- 获取能耗数据 -->
+    <select id="getAirEnergyList" parameterType="java.util.Map" resultType="java.util.HashMap">
+        SELECT sum(de.power) as power,de.date  FROM `day_data_ep` de
+        WHERE 1=1
+        <if test="array != null and array !=''">
+            and de.meter_id IN
+            <foreach collection="array" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+        </if>
+        <if test="start_time != null and end_time != null">
+            and de.date between #{start_time} and #{end_time}
+        </if>
+        GROUP BY de.date
+        ORDER BY de.date DESC
+    </select>
+
+
+
+    <!-- ============================   APP 照明控制============================    -->
+    <!-- ============================   APP 照明控制============================    -->
+    <!-- ============================   APP 照明控制============================    -->
+
+
+    <insert id="addLightTimingSetting" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="ts_id">
+        insert into `light_timing_setting`
+        (light_id,start_month,start_day,start_time,end_month,end_day,end_time,create_by,create_at)
+        values
+            (
+            #{light_id},
+            #{start_month},
+            #{start_day},
+            #{start_time},
+            #{end_month},
+            #{end_day},
+            #{end_time},
+            #{create_by},
+            SYSDATE()
+            )
+    </insert>
+
+
+    <!-- 照明-新增定时脚本-->
+    <insert id="addLightIntelligentControl" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="ic_id">
+        insert into `intelligent_control_light`
+        (light_id,light_tag,bdate,edate,btime,etime,create_user_id,create_time,enable)
+        values
+            (
+            #{light_id},
+            #{light_tag},
+            #{bdate},
+            #{edate},
+            #{btime},
+            #{etime},
+            #{create_user_id},
+            SYSDATE(),
+            #{enable}
+            )
+    </insert>
+
+
+    <!-- 照明-新增定时脚本 定时器 关联关系-->
+    <insert id="addLightRelation" parameterType="java.util.HashMap">
+        insert into `light_tsic_relation`
+        (ts_id,ic_id)
+        values
+            (
+            #{ts_id},
+            #{ic_id}
+            )
+    </insert>
+
+
+
+    <!--&lt;!&ndash;获取指定空调设备开关标签&ndash;&gt;-->
+    <select id="getLightSwitchTagById" resultType="java.lang.String" parameterType="java.lang.String">
+        SELECT l.switch_tag FROM `light` l
+        WHERE l.id=#{id}
+    </select>
+
+
+
+    <insert id="insertLightOperationRecord" parameterType="java.util.HashMap">
+        insert into `light_operation_record`
+        (project_id,building_id,light_id,device_desc,operation,operator,operating_time)
+        values
+            (
+            #{project_id},
+            #{building_id},
+            #{light_id},
+            #{device_desc},
+            #{operation},
+            #{operator},
+            SYSDATE()
+            )
+    </insert>
+
+    <select id="getLightTimingSetting" parameterType="java.util.Map" resultType="java.util.HashMap">
+        SELECT ts.id ts_id,ts.start_month,ts.start_day,ts.start_time,ts.end_month,ts.end_day,ts.end_time FROM light_timing_setting ts
+         WHERE ts.light_id=#{light_id}
+    </select>
+
+
+    <update id="updateLightTimingSetting" parameterType="java.util.HashMap">
+        update `light_timing_setting`
+        <set>
+            <if test="start_month != null">start_month=#{start_month},</if>
+            <if test="start_day != null">start_day=#{start_day},</if>
+            <if test="start_time != null">start_time=#{start_time},</if>
+            <if test="end_month != null">end_month=#{end_month},</if>
+            <if test="end_day != null">end_day=#{end_day},</if>
+            <if test="end_time != null">end_time=#{end_time}</if>
+        </set>
+        where id=#{ts_id}
+    </update>
+
+
+    <update id="updateLightIntelligentControl" parameterType="java.util.HashMap">
+        update `intelligent_control_light`
+        <set>
+            <if test="bdate != null">bdate=#{bdate},</if>
+            <if test="edate != null">edate=#{edate},</if>
+            <if test="btime != null">btime=#{btime},</if>
+            <if test="etime != null">etime=#{etime}</if>
+        </set>
+        where bdate  &gt;= #{begin_time} and
+        id in (SELECT ic_id from `light_tsic_relation` where ts_id=#{ts_id})
+    </update>
+
+
+    <delete id="deleteLightTimingSetting">
+		delete from `light_timing_setting`
+		where id=#{ts_id}
+	</delete>
+
+    <delete id="deleteLightIntelligentControl">
+		DELETE from `intelligent_control_light` where id in (SELECT ic_id from `light_tsic_relation` where ts_id=#{ts_id})
+	</delete>
+
+
+
+
+    <!-- 照明操作记录总数 -->
+    <select id="getLightOperationRecordCount" resultType="java.lang.Integer">
+        SELECT count(*) FROM `light_operation_record` ao
+        WHERE ao.building_id=#{building_id}
+        ORDER BY ao.operating_time DESC
+    </select>
+    <!-- 照明操作记录 -->
+    <select id="getLightOperationRecord" parameterType="java.util.Map" resultType="java.util.HashMap">
+        SELECT ao.building_id,ao.light_id,ao.device_desc,ao.operation,ao.operator,ao.operating_time FROM `light_operation_record` ao
+        WHERE ao.building_id=#{building_id}
+        ORDER BY ao.operating_time DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 照明楼信息 -->
+    <select id="getLightBuilding" parameterType="java.util.Map" resultType="java.util.HashMap">
+        SELECT ab.id building_id,ab.building_name FROM `light_building` ab
+        WHERE ab.project_id=#{project_id}
+        <if test="building_id != null and building_id !=''">
+            and ab.id=#{building_id}
+        </if>
+    </select>
+
+    <!-- 照明楼信息 -->
+    <select id="getLightList" parameterType="java.util.Map" resultType="java.util.HashMap">
+        SELECT ac.id light_id,ac.building_id,ac.device_name,ac.device_desc,ac.tg_name,ac.project_id,ac.factory_id,concat(ac.device_name,'_',ac.switch_tag) as tagName,
+        ac.switch_tag,0 as state FROM `light` ac
+        WHERE ac.project_id=#{project_id}
+        <if test="building_id != null and building_id !=''">
+            and ac.building_id=#{building_id}
+        </if>
+        <if test="light_id != null and light_id !=''">
+            and ac.id=#{light_id}
+        </if>
+    </select>
+
+    <!-- 通过参数获取照明信息 -->
+    <select id="getLightByParams" parameterType="java.util.Map" resultType="java.util.HashMap">
+        SELECT ac.id device_id,ac.device_desc device_name,elec_meter_id FROM `light` ac
+        WHERE 1=1
+        <if test="building_id != null and building_id !=''">
+            and ac.building_id=#{building_id}
+        </if>
+        <if test="id_list != null and id_list !=''">
+            and id IN
+            <foreach collection="id_list" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+        </if>
+    </select>
+
+    <!-- 获取标签 -->
+    <select id="getLightSwitchTag" parameterType="java.util.Map" resultType="java.util.HashMap">
+        SELECT ac.switch_tag tag_name FROM `light` ac
+        WHERE ac.project_id=#{project_id}
+        GROUP by ac.switch_tag
+    </select>
+    <!-- 获取能耗数据 -->
+    <select id="getLightEnergyList" parameterType="java.util.Map" resultType="java.util.HashMap">
+        SELECT sum(de.power) as power,de.date  FROM `day_data_ep` de
+        WHERE 1=1
+        <if test="array != null and array !=''">
+            and de.meter_id IN
+            <foreach collection="array" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+        </if>
+        <if test="start_time != null and end_time != null">
+            and de.date between #{start_time} and #{end_time}
+        </if>
+        GROUP BY de.date
+        ORDER BY de.date DESC
+    </select>
+</mapper>

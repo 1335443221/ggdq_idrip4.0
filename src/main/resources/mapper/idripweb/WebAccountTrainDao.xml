@@ -1,0 +1,389 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.WebAccountTrainDao">
+
+<!--    ##########################培训管理############################-->
+    <!-- 获取培训台账列表数据 -->
+    <select id="getTrainList" resultType="java.util.HashMap">
+        SELECT
+            t.id,
+            u.`name`,
+            t.train_content,
+            t.trainer,
+            CONCAT(date_format( t.begin_date, '%Y-%m-%d' )," ~ ",date_format( t.end_date, '%Y-%m-%d' )) AS date,
+            t.duration,
+            t.academic_record,
+            t.remarks
+        FROM
+            account_train t
+            LEFT JOIN app_register_user u ON t.attend_user = u.id
+            LEFT JOIN account_user au ON u.account_user_id = au.id
+            LEFT JOIN user_project_relation upr ON u.user_id = upr.uid
+        WHERE
+            upr.project_id = #{project_id}
+            AND (date_format( t.begin_date, '%Y-%m-%d' ) BETWEEN date_format( #{begin_date}, '%Y-%m-%d' ) AND date_format( #{end_date}, '%Y-%m-%d' )
+            OR date_format( t.end_date, '%Y-%m-%d' ) BETWEEN date_format( #{begin_date}, '%Y-%m-%d' ) AND date_format( #{end_date}, '%Y-%m-%d' ))
+            <if test="name != null and name !=''">
+                AND u.`name` like CONCAT('%',#{name},'%')
+            </if>
+            <if test="train_content != null and train_content !=''">
+                AND t.train_content like CONCAT('%',#{train_content},'%')
+            </if>
+            <if test="academic_record != null and academic_record !=''">
+                AND t.academic_record = #{academic_record}
+            </if>
+            <if test="has_material != null and has_material !='' and has_material != 0 and has_material != '0'">
+                AND t.has_material = #{has_material}
+            </if>
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 获取培训台账列表数据->count -->
+    <select id="getTrainListCount" resultType="java.lang.Integer">
+        SELECT
+            count(t.id)
+        FROM
+            account_train t
+            LEFT JOIN app_register_user u ON t.attend_user = u.id
+            LEFT JOIN account_user au ON u.account_user_id = au.id
+            LEFT JOIN user_project_relation upr ON u.user_id = upr.uid
+        WHERE
+            upr.project_id = #{project_id}
+            AND (date_format( t.begin_date, '%Y-%m-%d' ) BETWEEN date_format( #{begin_date}, '%Y-%m-%d' ) AND date_format( #{end_date}, '%Y-%m-%d' )
+            OR date_format( t.end_date, '%Y-%m-%d' ) BETWEEN date_format( #{begin_date}, '%Y-%m-%d' ) AND date_format( #{end_date}, '%Y-%m-%d' ))
+            <if test="name != null and name !=''">
+                AND u.`name` like CONCAT('%',#{name},'%')
+            </if>
+            <if test="train_content != null and train_content !=''">
+                AND t.train_content like CONCAT('%',#{train_content},'%')
+            </if>
+            <if test="academic_record != null and academic_record !=''">
+                AND t.academic_record = #{academic_record}
+            </if>
+            <if test="has_material != null and has_material !='' and has_material != 0 and has_material != '0'">
+                AND t.has_material = #{has_material}
+            </if>
+    </select>
+
+    <!-- 根据培训台账id获取该培训资料 -->
+    <select id="getTrainMaterial" resultType="java.util.HashMap">
+        SELECT
+            id AS material_id,
+            file_url,
+            file_name
+        FROM
+            account_train_material
+        WHERE
+            train_id = #{id}
+    </select>
+
+    <!-- 获取培训台账列表数据 -->
+    <select id="getTrainById" resultType="java.util.HashMap">
+        SELECT
+            u.company_id,
+            u.department_id,
+            u.id AS user_id,
+            t.train_content,
+            t.trainer,
+            date_format( t.begin_date, '%Y-%m-%d' ) AS `begin_date`,
+            date_format( t.end_date, '%Y-%m-%d' ) AS `end_date`,
+            t.duration,
+            t.academic_record,
+            t.remarks
+        FROM
+            account_train t
+            LEFT JOIN app_register_user u ON t.attend_user = u.id
+        WHERE
+            t.`id` = #{id}
+    </select>
+
+    <!--新增培训台账基础-->
+    <insert id="addTrain" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `account_train` ( `attend_user`, `train_content`, `trainer`, `begin_date`, `end_date`, `duration`, `academic_record`, `remarks`, `has_material` )
+        VALUES
+            ( #{attend_user}, #{train_content}, #{trainer}, #{begin_date}, #{end_date}, #{duration}, #{academic_record}, #{remarks}, #{has_material} )
+    </insert>
+
+    <!--新增培训资料-->
+    <insert id="addTrainMaterial" parameterType="java.util.HashMap">
+        INSERT INTO `account_train_material` ( `train_id`, `file_url`, `file_name` )
+        VALUES
+            <foreach collection ="materials" item="material" index= "index" separator =",">
+                (
+                    #{id},
+                    #{material.file_url},
+                    #{material.file_name}
+                )
+            </foreach >
+    </insert>
+
+    <!--修改培训台账基础-->
+    <insert id="updateTrain" parameterType="java.util.HashMap">
+        UPDATE `account_train`
+            <set>
+                <if test="attend_user != null">`attend_user`=#{attend_user},</if>
+                <if test="train_content != null">`train_content`=#{train_content},</if>
+                <if test="trainer != null">`trainer`=#{trainer},</if>
+                <if test="begin_date != null">`begin_date`=#{begin_date},</if>
+                <if test="end_date != null">`end_date`=#{end_date},</if>
+                <if test="duration != null">`duration`=#{duration},</if>
+                <if test="academic_record != null">`academic_record`=#{academic_record},</if>
+                <if test="remarks != null">`remarks`=#{remarks},</if>
+                <if test="has_material != null">`has_material`=#{has_material},</if>
+            </set>
+        WHERE
+            `id` = #{id};
+    </insert>
+
+    <!--删除某培训台账id下所有的培训材料-->
+    <delete id="deleteTrainMaterial" parameterType="java.util.HashMap">
+        DELETE FROM `account_train_material` WHERE `train_id` = #{id};
+    </delete>
+
+    <!--批量删除培训台账-->
+    <delete id="deleteTrains" parameterType="java.util.HashMap">
+        DELETE FROM `account_train` WHERE `id` IN
+        <foreach collection="ids" item="id" index="index" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!--批量删除培训台账id下所有的培训材料-->
+    <delete id="deleteTrainMaterials" parameterType="java.util.HashMap">
+        DELETE FROM `account_train_material` WHERE `train_id` IN
+        <foreach collection="ids" item="id" index="index" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 获取所有培训内容 -->
+    <select id="getTrainContents" resultType="java.util.HashMap">
+        SELECT
+            t.id AS `train_id`,
+            train_content AS `value`,
+            train_content AS `label`
+        FROM
+            account_train t
+            LEFT JOIN app_register_user u ON t.attend_user = u.id
+            LEFT JOIN user_project_relation upr ON u.user_id = upr.uid
+        WHERE
+            upr.project_id = #{project_id}
+    </select>
+
+
+
+<!--    ##########################培训单############################-->
+    <!-- 获取培训单列表数据 -->
+    <select id="getTrainSheetList" resultType="java.util.HashMap">
+        SELECT
+            th.id,
+            t.train_content,
+            CONCAT(date_format( th.begin_date, '%Y-%m-%d' )," ~ ",date_format( th.end_date, '%Y-%m-%d' )) AS date
+        FROM
+            account_train_sheet th
+            LEFT JOIN account_train t ON th.train_id = t.id
+        WHERE
+            th.project_id = #{project_id}
+            AND (date_format( th.begin_date, '%Y-%m-%d' ) BETWEEN date_format( #{begin_date}, '%Y-%m-%d' ) AND date_format( #{end_date}, '%Y-%m-%d' )
+            OR date_format( th.end_date, '%Y-%m-%d' ) BETWEEN date_format( #{begin_date}, '%Y-%m-%d' ) AND date_format( #{end_date}, '%Y-%m-%d' ))
+            <if test="train_content != null and train_content !=''">
+                AND th.`train_content` like CONCAT('%',#{train_content},'%')
+            </if>
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 获取培训单列表数据->count -->
+    <select id="getTrainSheetListCount" resultType="java.lang.Integer">
+        SELECT
+            count(th.id)
+        FROM
+            account_train_sheet th
+            LEFT JOIN account_train t ON th.train_id = t.id
+        WHERE
+            th.project_id = #{project_id}
+            AND (date_format( th.begin_date, '%Y-%m-%d' ) BETWEEN date_format( #{begin_date}, '%Y-%m-%d' ) AND date_format( #{end_date}, '%Y-%m-%d' )
+            OR date_format( th.end_date, '%Y-%m-%d' ) BETWEEN date_format( #{begin_date}, '%Y-%m-%d' ) AND date_format( #{end_date}, '%Y-%m-%d' ))
+            <if test="train_content != null and train_content !=''">
+                AND th.`train_content` like CONCAT('%',#{train_content},'%')
+            </if>
+    </select>
+
+    <!-- 根据培训单id获取该培训单文件 -->
+    <select id="getTrainSheetFile" resultType="java.util.HashMap">
+        SELECT
+            id AS file_id,
+            file_url,
+            file_name
+        FROM
+            account_train_sheet_file
+        WHERE
+            train_sheet_id = #{id}
+    </select>
+
+    <!-- 根据培训单id获取该培训单 -->
+    <select id="getTrainSheetById" resultType="java.util.HashMap">
+        SELECT
+            th.id,
+            th.train_id,
+            date_format( th.begin_date, '%Y-%m-%d' ) AS `begin_date`,
+            date_format( th.end_date, '%Y-%m-%d' ) AS `end_date`
+        FROM
+            account_train_sheet th
+            LEFT JOIN account_train t ON th.train_id = t.id
+        WHERE th.id = #{id}
+    </select>
+
+    <!--新增培训单-->
+    <insert id="addTrainSheet" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `account_train_sheet` (`begin_date`, `end_date`, `project_id`, `train_id` )
+        VALUES
+            ( #{begin_date}, #{end_date}, #{project_id}, #{train_id} )
+    </insert>
+
+    <!--新增培单文件-->
+    <insert id="addTrainSheetFile" parameterType="java.util.HashMap">
+        INSERT INTO `account_train_sheet_file` ( `train_sheet_id`, `file_url`, `file_name`)
+        VALUES
+        <foreach collection ="files" item="file" index= "index" separator =",">
+            (
+            #{id},
+            #{file.file_url},
+            #{file.file_name}
+            )
+        </foreach >
+    </insert>
+
+    <!--修改培训单-->
+    <insert id="updateTrainSheet" parameterType="java.util.HashMap">
+        UPDATE `account_train_sheet`
+        <set>
+            <if test="begin_date != null">`begin_date`=#{begin_date},</if>
+            <if test="end_date != null">`end_date`=#{end_date},</if>
+            <if test="train_id != null">`train_id`=#{train_id},</if>
+        </set>
+        WHERE
+        `id` = #{id};
+    </insert>
+
+    <!--删除培训单文件-->
+    <delete id="deleteTrainSheetFile" parameterType="java.util.HashMap">
+        DELETE FROM `account_train_sheet_file` WHERE `train_sheet_id` = #{id}
+    </delete>
+
+    <!--删除培训单-->
+    <delete id="deleteTrainSheet" parameterType="java.util.HashMap">
+        DELETE FROM `account_train_sheet` WHERE `id` = #{id}
+    </delete>
+
+
+
+
+<!--    ##########################数据统计############################-->
+
+    <!-- 参与培训男女比例 -->
+    <select id="getSexRatioChart" resultType="java.util.HashMap">
+        SELECT
+            CASE
+                au.sex
+                WHEN '1' THEN
+                '男' ELSE '女'
+            END `name`,
+            count( t.id ) AS `value`
+        FROM
+            account_train t
+            LEFT JOIN app_register_user u ON t.attend_user = u.id
+            LEFT JOIN account_user au ON u.account_user_id = au.id
+            LEFT JOIN user_project_relation upr ON u.user_id = upr.uid
+        WHERE
+            upr.project_id = #{project_id}
+            AND u.account_user_id IS NOT NULL
+            AND date_format(t.begin_date,'%Y') = #{year}
+        GROUP BY
+            `name`
+    </select>
+
+    <!-- 参与培训部门比例 -->
+    <select id="getDepartmentRatioChart" resultType="java.util.HashMap">
+        SELECT
+            od.dname AS `name`,
+            count( t.id ) AS `value`
+        FROM
+            account_train t
+            LEFT JOIN app_register_user u ON t.attend_user = u.id
+            LEFT JOIN account_user au ON u.account_user_id = au.id
+            LEFT JOIN user_project_relation upr ON u.user_id = upr.uid
+            LEFT JOIN organizational_department od ON u.department_id = od.id
+        WHERE
+            upr.project_id = #{project_id}
+            AND u.account_user_id IS NOT NULL
+            AND date_format(t.begin_date,'%Y') = #{year}
+        GROUP BY
+            `name`
+    </select>
+
+    <!-- 培训成绩 -->
+    <select id="getTrainsResultChart" resultType="java.util.HashMap">
+        SELECT
+            t.academic_record AS `name`,
+            count( t.id ) AS `value`
+        FROM
+            account_train t
+            LEFT JOIN app_register_user u ON t.attend_user = u.id
+            LEFT JOIN account_user au ON u.account_user_id = au.id
+            LEFT JOIN user_project_relation upr ON u.user_id = upr.uid
+        WHERE
+            upr.project_id = #{project_id}
+            AND u.account_user_id IS NOT NULL
+            AND date_format(t.begin_date,'%Y') = #{year}
+        GROUP BY
+            `name`
+    </select>
+
+    <!-- 各部门参与人数-->
+    <select id="getDepartmentMonthChart" resultType="java.util.HashMap">
+        SELECT
+            CASE
+                date_format( t.begin_date, '%c' )
+                WHEN '1' THEN
+                '一月'
+                WHEN '2' THEN
+                '二月'
+                WHEN '3' THEN
+                '三月'
+                WHEN '4' THEN
+                '四月'
+                WHEN '5' THEN
+                '五月'
+                WHEN '6' THEN
+                '六月'
+                WHEN '7' THEN
+                '七月'
+                WHEN '8' THEN
+                '八月'
+                WHEN '9' THEN
+                '九月'
+                WHEN '10' THEN
+                '十月'
+                WHEN '11' THEN
+                '十一月'
+                WHEN '12' THEN
+                '十二月'
+            END `date`,
+            od.dname AS `dname`,
+            count( t.id ) AS `value`
+        FROM
+            account_train t
+            LEFT JOIN app_register_user u ON t.attend_user = u.id
+            LEFT JOIN account_user au ON u.account_user_id = au.id
+            LEFT JOIN user_project_relation upr ON u.user_id = upr.uid
+            LEFT JOIN organizational_department od ON u.department_id = od.id
+        WHERE
+            upr.project_id = #{project_id}
+            AND u.account_user_id IS NOT NULL
+            AND date_format(t.begin_date,'%Y') = #{year}
+        GROUP BY
+            `date`,
+            `dname`
+    </select>
+</mapper>

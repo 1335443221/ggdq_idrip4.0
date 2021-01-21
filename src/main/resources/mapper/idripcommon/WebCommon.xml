@@ -1,0 +1,337 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.WebCommonDao">
+
+    <!-- 园区列表 -->
+    <select id="getFactory" resultType="java.util.HashMap">
+        SELECT f.id factory_id,f.factory_name FROM `project_factory` f
+        where f.project_id=#{project_id}
+        <if test="factory_id != null and factory_id != ''">
+        and f.id = #{factory_id}
+        </if>
+    </select>
+
+
+    <!-- 园区列表 -->
+    <select id="getBuilding" resultType="java.util.HashMap">
+        SELECT b.id building_id,b.category_name building_name FROM `common_project_category_relation` b
+		WHERE b.parent_category_id in(
+		SELECT c.id FROM `common_project_category_relation` c
+        INNER JOIN `common_category_factory_relation` f on c.parent_category_id=f.category_id
+        where c.project_id=#{project_id}
+        <if test="factory_id != null and factory_id != ''">
+            and f.factory_id = #{factory_id}
+        </if>
+		)
+    </select>
+
+    <!-- 园区列表 -->
+    <select id="getSjfHouse" resultType="java.util.HashMap">
+        SELECT h.id house_id,h.house_name,h.elec_meter_number,h.house_number
+        FROM `sjf_house` h
+        LEFT JOIN `sjf_house_type_now` t on h.type_id=t.id
+        where h.is_check_in=1
+        <if test="project_id != null and project_id !=''">
+            and h.project_id=#{project_id}
+        </if>
+        <if test="factory_id != null and factory_id !=''">
+            and h.factory_id=#{factory_id}
+        </if>
+        <if test="building_id != null and building_id !=''">
+            and h.building_id=#{building_id}
+        </if>
+        <if test="type_id != null and type_id !=''">
+            and h.type_id=#{type_id}
+        </if>
+        <if test="charge_type != null and charge_type !=''">
+            and t.charge_type=#{charge_type}
+        </if>
+    </select>
+
+    <!-- user列表 -->
+    <select id="getUserList" resultType="java.util.HashMap">
+        SELECT u.id user_id,u.`name` user_name
+        FROM `user` u
+        INNER JOIN `user_project_relation` r on u.id=r.uid
+        where r.project_id=#{project_id}
+        <if test="name != null and name !=''">
+            and u.`name` like CONCAT('%',#{name},'%')
+        </if>
+        <if test='remove_self =="1"'>
+            and u.id != #{user_id}
+        </if>
+
+    </select>
+
+
+    <!-- 报废 获取最后一个单号的末尾三位数 -->
+    <select id="elcmScrapNumber" resultType="java.lang.String">
+        SELECT right(ds.scrap_number, 3) as scrap_number
+        FROM `elcm_device_scrap` ds
+        WHERE ds.project_id=#{project_id}
+        <if test="number != null and number != ''">
+            and ds.scrap_number like CONCAT('%',#{number},'%')
+        </if>
+        ORDER BY ds.scrap_number DESC
+        LIMIT 1
+    </select>
+
+    <!-- 保修 获取最后一个单号的末尾三位数 -->
+    <select id="elcmMalfunctionNumber" resultType="java.lang.String">
+        SELECT right(m.malfunction_number, 3) as malfunction_number
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        WHERE m.project_id=#{project_id}
+        <if test="number != null and number != ''">
+            and m.malfunction_number like CONCAT('%',#{number},'%')
+        </if>
+        ORDER BY m.malfunction_number DESC
+        LIMIT 1
+    </select>
+    <!-- 维修 获取最后一个单号的末尾三位数 -->
+    <select id="elcmRepairNumber" resultType="java.lang.String">
+        SELECT right(m.repair_number, 3) as repair_number
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        WHERE m.project_id=#{project_id}
+        <if test="number != null and number != ''">
+            and m.repair_number like CONCAT('%',#{number},'%')
+        </if>
+        ORDER BY m.repair_number DESC
+        LIMIT 1
+    </select>
+    <!-- 维保计划 获取最后一个单号的末尾三位数 -->
+    <select id="elcmTaskNumber" resultType="java.lang.String">
+        SELECT right(m.task_number, 3) as task_number
+        FROM `elcm_device_task` m
+        WHERE m.project_id=#{project_id}
+        <if test="number != null and number != ''">
+            and m.task_number like CONCAT('%',#{number},'%')
+        </if>
+        ORDER BY m.task_number DESC
+        LIMIT 1
+    </select>
+
+    <!-- 维保工单 获取最后一个单号的末尾三位数 -->
+    <select id="elcmTaskRecordNumber" resultType="java.lang.String">
+        SELECT right(r.record_number, 3) as record_number
+        FROM `elcm_device_task_record` r
+        WHERE r.project_id=#{project_id}
+        <if test="number != null and number != ''">
+            and r.record_number like CONCAT('%',#{number},'%')
+        </if>
+        ORDER BY r.record_number DESC
+        LIMIT 1
+    </select>
+
+
+    <!-- 入库 获取最后一个单号的末尾三位数 -->
+    <select id="elcmSeparepartsNumberIn" resultType="java.lang.String">
+        SELECT right(record.number, 3) as number
+        FROM `elcm_spareparts_in_record` record
+        WHERE record.project_id=#{project_id}
+        <if test="number != null and number != ''">
+            and record.number like CONCAT('%',#{number},'%')
+        </if>
+        ORDER BY record.id DESC
+        LIMIT 1
+    </select>
+
+    <!-- 出库 获取最后一个单号的末尾三位数 -->
+    <select id="elcmSeparepartsNumberOut" resultType="java.lang.String">
+        SELECT right(record.number, 3) as number
+        FROM `elcm_spareparts_out_record` record
+        WHERE record.project_id=#{project_id}
+        <if test="number != null and number != ''">
+            and record.number like CONCAT('%',#{number},'%')
+        </if>
+        ORDER BY record.id DESC
+        LIMIT 1
+    </select>
+
+    <!-- 备件号 获取最后一个单号的末尾三位数 -->
+    <select id="elcmSeparepartsNumber" resultType="java.lang.String">
+        SELECT right(record.number, 3) as number
+        FROM `elcm_spareparts` record
+        WHERE record.project_id=#{project_id}
+        <if test="number != null and number != ''">
+            and record.number like CONCAT('%',#{number},'%')
+        </if>
+        ORDER BY record.id DESC
+        LIMIT 1
+    </select>
+
+    <!-- 申请记录-->
+    <select id="getApprovalRecord" resultType="java.util.HashMap">
+        SELECT
+        u.`name` user_name,
+        ar.content,
+        ar.record_time,
+        ar.`status`,
+        ar.is_examine
+        FROM `elcm_approval_record` ar
+        INNER JOIN `elcm_approval` a on ar.approval_id=a.id
+        INNER JOIN `user` u on ar.user_id=u.id
+        WHERE  a.odd_number=#{oddNumber} AND a.project_id=#{project_id}
+        ORDER BY ar.record_time
+    </select>
+
+
+    <!--备件记录-->
+    <select id="getSparepartsByNumber" resultType="java.util.HashMap">
+        SELECT s.id spareparts_id,s.number as spareparts_number,s.`name` as spareparts_name,u.use_amount
+	    FROM `elcm_spareparts_apply_use` u
+        INNER JOIN `elcm_spareparts` s  on s.id=u.spareparts_id
+        WHERE u.apply_number = #{oddNumber} AND u.project_id=#{project_id} AND u.type_id=#{type_id}
+    </select>
+
+
+    <!-- 新增审批-->
+    <insert id="addElcmApproval" useGeneratedKeys="true" keyProperty="approval_id.id">
+        insert into `elcm_approval`
+        (odd_number,`type_id`,approval_name,apply_by,apply_at,status,project_id)
+        values
+            (
+            #{odd_number},
+            #{type},
+            #{approval_name},
+            #{apply_by},
+			SYSDATE(),
+            1,
+            #{project_id}
+            )
+    </insert>
+
+    <!-- 新增审批记录-->
+    <insert id="addElcmApprovalRecord">
+        insert into `elcm_approval_record`
+        (approval_id,user_id,record_time,content,status)
+        values
+            (
+            #{approval_id},
+            #{user_id},
+			SYSDATE(),
+            #{content},
+            #{status}
+            )
+    </insert>
+
+    <!-- 获取审批id-->
+    <select id="getElcmApprovalId" resultType="java.lang.Integer">
+        SELECT
+        IFNULL((SELECT id  FROM `elcm_approval` a
+        WHERE  a.odd_number=#{odd_number} AND type_id=#{type_id} ),0) as id
+    </select>
+
+
+    <!-- 修改状态 -->
+    <update id="updateApproveStatus">
+        update `elcm_approval`
+        <set>
+            <if test="status != null">status=#{status}</if>
+        </set>
+        WHERE id=#{approval_id}
+    </update>
+
+    <!-- 修改-->
+    <update id="updateApprove">
+        update `elcm_approval`
+        <set>
+            <if test="approval_name != null">approval_name=#{approval_name},</if>
+            <if test="apply_at != null">apply_at=#{apply_at},</if>
+            <if test="apply_by != null">apply_by=#{apply_by}</if>
+        </set>
+        WHERE id=#{approval_id}
+    </update>
+
+
+
+
+
+
+    <!-- 修改报废状态 -->
+    <update id="updateScrapStatus">
+        update `elcm_device_scrap`
+        <set>
+            <if test="status != null">status=#{status}</if>
+        </set>
+        WHERE scrap_number=#{odd_number} AND project_id=#{project_id}
+    </update>
+    <!-- 修改维修状态 -->
+    <update id="updateMalfunctionStatus">
+        update `elcm_malfunction`
+        <set>
+            <if test="status != null">status=#{status},</if>
+            <if test="repair_status != null">repair_status=#{repair_status}</if>
+        </set>
+        WHERE repair_number=#{odd_number} AND project_id=#{project_id}
+    </update>
+    <!-- 修改维保工单状态 -->
+    <update id="updateTaskRecordStatus">
+        update `elcm_device_task_record`
+        <set>
+            <if test="status != null">status=#{status}</if>
+        </set>
+        WHERE record_number=#{odd_number} AND project_id=#{project_id}
+    </update>
+
+    <!-- 修改维保计划状态 -->
+    <update id="updateTaskStatus">
+        update `elcm_device_task`
+        <set>
+            <if test="status != null">status=#{status}</if>
+        </set>
+        WHERE task_number=#{odd_number} AND project_id=#{project_id}
+    </update>
+
+
+
+
+
+    <!-- 删除审批 -->
+    <delete id="deleteApproval">
+        delete from `elcm_approval`
+        WHERE odd_number=#{odd_number} AND type_id=#{type_id}
+    </delete>
+
+    <!-- 修改设备状态 -->
+    <update id="updateDeviceStatus">
+        update `elcm_device_info`
+        <set>
+            <if test="status != null">status_id=#{status}</if>
+        </set>
+        WHERE id=#{device_id}
+    </update>
+
+
+    <!-- 获取设备的故障数量-->
+    <select id="getMalfunctionCount" resultType="java.lang.Integer">
+        SELECT
+        count(*)
+        FROM `elcm_malfunction`
+        WHERE  device_id=#{device_id} AND repair_status in (3,4,5)
+    </select>
+
+    <!-- 获取设备的任务数量-->
+    <select id="getTaskCount" resultType="java.lang.Integer">
+       	select ifnull(( select maintenance_type_id FROM `elcm_device_task_record` r
+        INNER JOIN `elcm_device_task_relation` tr ON  tr.id=r.relation_id
+        INNER JOIN `elcm_device_task` t ON  tr.task_id=t.id
+        WHERE  tr.device_id=#{device_id} AND r.status in (3,4,5)
+        ORDER BY r.id DESC
+        LIMIT 1 ),0) as maintenance_type_id;
+    </select>
+
+    <!-- 获取设备状态-->
+    <select id="getDeviceStatus" resultType="java.lang.Integer">
+       	select status_id FROM  `elcm_device_info` WHERE  id=#{device_id}
+    </select>
+
+    <!-- 添加维保记录 -->
+    <insert id="insertMaintenanceRecord">
+        INSERT INTO `center`.`elcm_maintenance_record` (`maintenance_type_id`, `device_id`, `user_id`, `create_time`, `desc`, `complete_url`,`odd_number` )
+        VALUES
+	    (#{maintenance_type_id}, #{device_id}, #{user_id}, now(), #{desc}, #{complete_url}, #{odd_number} );
+    </insert>
+</mapper>

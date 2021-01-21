@@ -1,0 +1,313 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.AppRegisterUserDao">
+
+	<select id="query" resultType="java.util.HashMap">
+		SELECT r.id,r.phone,r.name,r.company_name,r.pwd,r.module,r.zyd_open,r.fire_level,r.sjf_role,r.create_at,u.id uid,u.uname u_name,u.pwd u_pwd,u.oper_pwd,
+		up.project_id,p.project_name,p.code_name,r.portrait,f.id factory_id,f.factory_name,r.elcm_role device_role,er.role_name device_role_name FROM
+		`app_register_user` r
+		LEFT JOIN `user` u
+		ON r.user_id=u.id
+		LEFT JOIN `user_project_relation` up
+		ON u.id=up.uid
+		LEFT JOIN `project_info` p
+		ON p.id=up.project_id
+		LEFT JOIN `project_factory` f
+		ON f.project_id=p.id
+		LEFT JOIN `elcm_user_role` er
+		ON r.elcm_role=er.id
+		where 1=1
+		<if test="phone != null and phone !=''">
+			and r.phone = #{phone}   
+		</if>
+		<if test="pwd != null and pwd !=''">
+			and r.pwd = #{pwd}  
+		</if>
+		GROUP BY r.id
+		ORDER BY r.id DESC
+	</select>
+
+	<select id="queryElecPrice" resultType="java.util.HashMap">
+		SELECT * from `app_elec_price` a
+		where 1=1
+		<if test="project_id != null and project_id !=''">
+			and a.project_id = #{project_id}
+		</if>
+		ORDER BY a.id DESC limit 1
+	</select>
+
+	<update id="updateElecPrice">
+		UPDATE `app_elec_price`
+		<set>
+			<if test="elec_price != null">elec_price=#{elec_price},</if>
+			<if test="pwd != null">pwd=#{pwd}</if>
+		</set>
+		where project_id=#{project_id}
+	</update>
+
+	<update id="update">
+		UPDATE `app_register_user`
+		<set>
+			<if test="phone != null">phone=#{phone},</if>
+			<if test="name != null">name=#{name},</if>
+			<if test="company_name != null">company_name=#{company_name},</if>
+			<if test="pwd != null">pwd=#{pwd},</if>
+			<if test="create_at != null">create_at=#{create_at},</if>
+			<if test="user_id != null">user_id=#{user_id},</if>
+			<if test="module != null">module=#{module},</if>
+			<if test="fire_level != null">fire_level=#{fire_level},</if>
+			<if test="zyd_open != null">zyd_open=#{zyd_open},</if>
+			<if test="bind_phone != null">bind_phone=#{bind_phone},</if>
+			<if test="portrait != null">portrait=#{portrait},</if>
+			<if test="sjf_role != null">sjf_role=#{sjf_role},</if>
+			<if test="elcm_role != null">elcm_role=#{elcm_role}</if>
+		</set>
+		where id=#{id}
+	</update>
+
+	<delete id="delete">
+		delete from `app_register_user`
+		where id=#{id}
+	</delete>
+	<insert id="save">
+		insert into `app_register_user`
+		(phone,name,company_name,pwd,create_at,user_id)
+		values
+		(
+		<choose>
+			<when test="phone != null and phone != ''">#{phone},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="name != null and name != ''">#{name},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="company_name != null and company_name != ''">#{company_name},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="pwd != null and pwd != ''">#{pwd},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="create_at != null and create_at != ''">#{create_at},</when>
+			<otherwise>''</otherwise>
+		</choose>
+		<choose>
+			<when test="user_id != null and user_id != ''">#{user_id}</when>
+			<otherwise>''</otherwise>
+		</choose>
+
+		)
+	</insert>
+
+	<select id="getSession" parameterType="java.util.Map" resultType="java.util.HashMap">
+	select * from `app_ove_sesssion`
+	where  app_session =#{app_session}
+	limit 1
+	</select>
+
+	<insert id="insertSession" parameterType="java.util.Map" useGeneratedKeys="true" keyProperty="id">
+		insert into `app_ove_sesssion`
+		(app_session,app_value,create_at)
+		values
+		(	#{app_session},
+			#{app_value},
+			SYSDATE()
+		)
+	</insert>
+
+
+
+	<!-- 修改APP用户 -->
+	<update id="updateAppUser">
+		UPDATE `app_register_user`
+		<set>
+			<if test="phone != null">phone=#{phone},</if>
+			<if test="name != null">name=#{name},</if>
+			<if test="company_name != null">company_name=#{company_name},</if>
+			<if test="pwd != null">pwd=#{pwd},</if>
+			<if test="create_at != null">create_at=#{create_at},</if>
+			<if test="user_id != null">user_id=#{user_id},</if>
+			<if test="module != null">module=#{module},</if>
+			<if test="fire_level != null">fire_level=#{fire_level},</if>
+			<if test="zyd_open != null">zyd_open=#{zyd_open},</if>
+			<if test="bind_phone != null">bind_phone=#{bind_phone},</if>
+			<if test="portrait != null">portrait=#{portrait},</if>
+			<if test="sjf_role != null">sjf_role=#{sjf_role},</if>
+			<if test="elcm_role != null">elcm_role=#{elcm_role}</if>
+		</set>
+		where id=#{id}
+	</update>
+
+	<!-- 修改APP用户 -->
+	<update id="updateProjectUser">
+		UPDATE `user`
+		<set>
+			<if test="uname != null">uname=#{uname},</if>
+			<if test="name != null">name=#{name},</if>
+			<if test="pwd != null">pwd=#{pwd},</if>
+			<if test="oper_pwd != null">oper_pwd=#{oper_pwd},</if>
+			<if test="email != null">email=#{email},</if>
+			<if test="type != null">type=#{type},</if>
+			<if test="reg_time != null">reg_time=#{reg_time},</if>
+			update_time=SYSDATE(),
+			<if test="phone != null">phone=#{phone},</if>
+			<if test="operate_system != null">operate_system=#{operate_system},</if>
+			<if test="last_login_time != null">last_login_time=#{last_login_time},</if>
+			<if test="office_phone != null">office_phone=#{office_phone},</if>
+			<if test="description != null">description=#{description},</if>
+			<if test="is_delete != null">is_delete=#{is_delete},</if>
+			<if test="delete_time != null">delete_time=#{delete_time}</if>
+		</set>
+		where id=#{user_id}
+	</update>
+
+
+	<!-- 修改role user 关联关系 -->
+	<update id="updateProjectRoleUser">
+		UPDATE `rbac_user_role_relation`
+		<set>
+			<if test="role_id != null">rid=#{role_id}</if>
+		</set>
+		where uid=#{user_id}
+	</update>
+
+
+
+	<insert id="insertAppUser">
+		insert into `app_register_user`
+		(phone,name,company_name,pwd,create_at,user_id,module,fire_level,zyd_open,bind_phone,portrait,sjf_role,elcm_role)
+		values
+		(
+		<choose>
+			<when test="phone != null and phone != ''">#{phone},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="name != null and name != ''">#{name},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="company_name != null and company_name != ''">#{company_name},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="pwd != null and pwd != ''">#{pwd},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="create_at != null and create_at != ''">#{create_at},</when>
+			<otherwise>''</otherwise>
+		</choose>
+		<choose>
+			<when test="user_id != null and user_id != ''">#{user_id},</when>
+			<otherwise>''</otherwise>
+		</choose>
+		<choose>
+			<when test="module != null and module != ''">#{module},</when>
+			<otherwise>''</otherwise>
+		</choose>
+		<choose>
+			<when test="fire_level != null and fire_level != ''">#{fire_level},</when>
+			<otherwise>''</otherwise>
+		</choose>
+		<choose>
+			<when test="zyd_open != null and zyd_open != ''">#{zyd_open},</when>
+			<otherwise>''</otherwise>
+		</choose>
+		<choose>
+			<when test="bind_phone != null and bind_phone != ''">#{bind_phone},</when>
+			<otherwise>''</otherwise>
+		</choose>
+		<choose>
+			<when test="portrait != null and portrait != ''">#{portrait},</when>
+			<otherwise>''</otherwise>
+		</choose>
+		<choose>
+			<when test="sjf_role != null and sjf_role != ''">#{sjf_role},</when>
+			<otherwise>''</otherwise>
+		</choose>
+
+		<choose>
+			<when test="elcm_role != null and elcm_role != ''">#{elcm_role}</when>
+			<otherwise>''</otherwise>
+		</choose>
+
+		)
+	</insert>
+
+	<insert id="insertProjectUser" useGeneratedKeys="true" keyProperty="id">
+		insert into `user`
+		(uname,name,pwd,oper_pwd,reg_time,phone,operate_system,type,update_time)
+		values
+		(
+		#{uname},#{name},#{pwd},#{oper_pwd},SYSDATE(),#{phone},#{operate_system},#{type},SYSDATE()
+		)
+	</insert>
+
+
+	<insert id="insertProjectRoleUser">
+		insert into `rbac_user_role_relation`
+		(uid,rid)
+		values
+		(
+		#{uid},#{rid}
+		)
+	</insert>
+
+	<delete id="deleteAppUser">
+		delete from `app_register_user`
+		where id=#{id}
+	</delete>
+
+
+	<!-- 删除 user用户 -->
+	<update id="deleteProjectUser">
+		UPDATE `user`
+		<set>
+			<if test="is_delete != null">is_delete=#{is_delete},</if>
+			delete_time=SYSDATE()
+		</set>
+		where id=#{user_id}
+	</update>
+
+	<!-- 根据uname取用户数据 -->
+	<select id="getUserInfo" resultType="java.util.HashMap">
+		SELECT
+			u.id AS uid,
+			u.pwd AS pwd,
+			u.oper_pwd AS oper_pwd,
+			u.uname AS uname,
+			u. name AS name,
+			u. operate_system AS operate_system,
+			rur.id AS rid,
+			rur.role_name AS role_name,
+			rur. level AS level,
+			u.type AS type,
+			u.update_time,
+			u.reg_time
+		FROM
+			user u
+		LEFT JOIN rbac_user_role_relation rurr ON u.id = rurr.uid
+		LEFT JOIN rbac_user_role rur ON rurr.rid = rur.id
+		WHERE
+			uname = #{uname}
+		LIMIT 1
+	</select>
+
+	<!-- 根据uid取用户项目信息 -->
+	<select id="getUserProjectInfo" resultType="java.util.HashMap">
+		SELECT
+			*
+		FROM
+			user_project_relation upr
+		LEFT JOIN tg_info ti ON upr.project_id = ti.project_id
+		LEFT JOIN project_info pi ON upr.project_id = pi.id
+		WHERE
+			upr.uid = #{uid}
+		AND ti.ENABLE = 1
+	</select>
+</mapper>

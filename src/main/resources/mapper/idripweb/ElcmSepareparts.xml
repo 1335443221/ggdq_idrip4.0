@@ -1,0 +1,766 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.ElcmSeparepartsDao">
+
+    <!-- #########################备件字典表部分################################################ -->
+    <!-- 获取所有的备件类型 -->
+    <select id="getSeparepartsTypes" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts_type.id,
+            elcm_spareparts_type.`name`
+        FROM
+            elcm_spareparts_type
+    </select>
+
+    <!-- 获取所有的备件来源 -->
+    <select id="getSeparepartsSources" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts_source.id,
+            elcm_spareparts_source.`name`
+        FROM
+            elcm_spareparts_source
+    </select>
+
+
+    <!-- ##############################备件台账列表部分################################################### -->
+    <!-- 备件台账页面根据筛选条件获取备件台账列表 -->
+    <select id="getSeparepartsList" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts.id AS spareparts_id,
+            elcm_spareparts.number,
+            elcm_spareparts.`name`,
+            elcm_spareparts.model,
+            elcm_spareparts_type.`name` AS type_name,
+            elcm_spareparts.inventory,
+            elcm_spareparts.minimum_inventory,
+            elcm_spareparts.use_years,
+            elcm_spareparts.single_price,
+            elcm_spareparts.total_price
+        FROM
+            elcm_spareparts
+        LEFT JOIN elcm_spareparts_type ON elcm_spareparts.type = elcm_spareparts_type.id
+        WHERE elcm_spareparts.project_id=#{project_id}
+            <if test="type_id != null and type_id !='' and type_id != 0 and type_id != '0'">
+                AND elcm_spareparts.type = #{type_id}
+            </if>
+            <if test="number != null and number !=''">
+                AND elcm_spareparts.`number` like concat('%',#{number},'%')
+            </if>
+            <if test="name != null and name !=''">
+                AND elcm_spareparts.name like concat('%',#{name},'%')
+            </if>
+        ORDER BY elcm_spareparts.create_time desc
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 备件台账页面根据筛选条件获取备件台账列表->count -->
+    <select id="getSeparepartsListCount" resultType="java.lang.Integer">
+        SELECT
+            count(elcm_spareparts.id)
+        FROM
+            elcm_spareparts
+        LEFT JOIN elcm_spareparts_type ON elcm_spareparts.type = elcm_spareparts_type.id
+        WHERE elcm_spareparts.project_id=#{project_id}
+            <if test="type_id != null and type_id !='' and type_id != 0 and type_id != '0'">
+                AND elcm_spareparts.type = #{type_id}
+            </if>
+            <if test="number != null and number !=''">
+                AND elcm_spareparts.number like concat('%',#{number},'%')
+            </if>
+            <if test="name != null and name !=''">
+                AND elcm_spareparts.name like concat('%',#{name},'%')
+            </if>
+        ORDER BY elcm_spareparts.create_time desc
+    </select>
+
+    <!-- 备件台账页面导出数据查询 -->
+    <select id="getExportDataList" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts.id AS spareparts_id,
+            elcm_spareparts.number,
+            elcm_spareparts.`name`,
+            elcm_spareparts.model,
+            elcm_spareparts_type.`name` AS type_name,
+            elcm_spareparts.inventory,
+            elcm_spareparts.minimum_inventory,
+            elcm_spareparts.use_years,
+            elcm_spareparts.single_price,
+            elcm_spareparts.total_price,
+            elcm_spareparts.length,
+            elcm_spareparts.width,
+            elcm_spareparts.high,
+            elcm_spareparts.manufacturer,
+            elcm_spareparts.supplier,
+            elcm_spareparts.inventory_unit,
+            elcm_spareparts.procurement_cycle,
+            elcm_spareparts.minimum_order_quantity,
+            elcm_spareparts.position,
+            elcm_assets_type.`name` AS assets_name
+        FROM
+            elcm_spareparts
+            LEFT JOIN elcm_spareparts_type ON elcm_spareparts.type = elcm_spareparts_type.id
+            LEFT JOIN elcm_assets_type ON elcm_spareparts.assets_id = elcm_assets_type.id
+        WHERE
+            elcm_spareparts.id IN
+            <foreach collection="sparepartsIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+    </select>
+
+    <!-- 查询所有备件编号 -->
+    <select id="getNumberList" resultType="java.lang.String">
+        SELECT
+            elcm_spareparts.number
+        FROM
+            elcm_spareparts
+        WHERE elcm_spareparts.project_id=#{project_id}
+    </select>
+
+    <!-- 批量添加备件 -->
+    <insert id="batchAddSepareparts" parameterType="java.util.HashMap">
+        INSERT INTO `elcm_spareparts` (
+            `type`, `number`, `name`, `model`, `inventory`, `minimum_inventory`, `use_years`, `single_price`,
+            `total_price`, `length`, `width`, `high`, `manufacturer`, `supplier`, `inventory_unit`, `procurement_cycle`,
+             `minimum_order_quantity`, `position`, `file_url`, `project_id`, `create_time`, `assets_id`
+        )
+        VALUES
+        <foreach collection ="separepartsList" item="map" index= "index" separator =",">
+            (
+                #{map.type_id},#{map.number},#{map.name}, #{map.model},#{map.inventory},
+                #{map.minimum_inventory},#{map.use_years},#{map.single_price}, #{map.total_price},#{map.length},
+                #{map.width},#{map.high},#{map.manufacturer}, #{map.supplier},#{map.inventory_unit},
+                #{map.procurement_cycle},#{map.minimum_order_quantity},#{map.position},#{map.file_url},#{map.project_id},
+                now(),#{assets_id}
+            )
+        </foreach >
+    </insert>
+
+    <!-- 选择备件页面根据条件获取备件列表 -->
+    <select id="getSeparepartsListForSelect" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts.id AS spareparts_id,
+            elcm_spareparts.number,
+            elcm_spareparts.`name`,
+            elcm_spareparts.model,
+            elcm_spareparts_type.`name` AS type_name,
+            elcm_spareparts.inventory,
+            elcm_spareparts.position
+        FROM
+            elcm_spareparts
+        LEFT JOIN elcm_spareparts_type ON elcm_spareparts.type = elcm_spareparts_type.id
+        WHERE elcm_spareparts.project_id=#{project_id}
+        <if test="type_id != null and type_id !='' and type_id != 0 and type_id != '0'">
+            AND elcm_spareparts.type = #{type_id}
+        </if>
+        <if test="name != null and name !=''">
+            AND (elcm_spareparts.number like concat('%',#{name},'%') OR elcm_spareparts.`name` like concat('%',#{name},'%') )
+        </if>
+        ORDER BY elcm_spareparts.create_time desc
+    </select>
+
+
+
+
+    <!--    ##############################单个备件台账部分###################################################-->
+    <!-- 单个备件台账信息查询 -->
+    <select id="getSeparepartsById" resultType="java.util.HashMap">
+       SELECT
+            elcm_spareparts.id AS spareparts_id,
+            elcm_spareparts.number,
+            elcm_spareparts.`name`,
+            elcm_spareparts.model,
+            elcm_spareparts_type.`name` AS type_name,
+            elcm_spareparts.inventory,
+            elcm_spareparts.minimum_inventory,
+            elcm_spareparts.use_years,
+            elcm_spareparts.single_price,
+            elcm_spareparts.total_price,
+            elcm_spareparts.length,
+            elcm_spareparts.width,
+            elcm_spareparts.high,
+            elcm_spareparts.manufacturer,
+            elcm_spareparts.supplier,
+            elcm_spareparts.inventory_unit,
+            elcm_spareparts.procurement_cycle,
+            elcm_spareparts.minimum_order_quantity,
+            elcm_spareparts.position,
+            elcm_assets_type.`name` AS assets_name,
+            elcm_spareparts.assets_id,
+            elcm_spareparts.type AS type_id,
+            elcm_spareparts.file_url
+        FROM
+            elcm_spareparts
+            LEFT JOIN elcm_spareparts_type ON elcm_spareparts.type = elcm_spareparts_type.id
+            LEFT JOIN elcm_assets_type ON elcm_spareparts.assets_id = elcm_assets_type.id
+        WHERE
+            elcm_spareparts.id = #{spareparts_id}
+    </select>
+
+    <!-- 添加单个备件 -->
+    <insert id="addSingleSepareparts" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="spareparts_id">
+        INSERT INTO `elcm_spareparts` (
+            `type`, `number`, `name`, `model`, `inventory`, `minimum_inventory`, `use_years`, `single_price`,
+             `length`, `width`, `high`, `manufacturer`, `supplier`, `inventory_unit`, `procurement_cycle`,
+             `minimum_order_quantity`, `position`, `file_url`, `project_id`, `create_time`, `assets_id`
+        )
+        VALUES
+        (
+            #{type_id},#{number},#{name}, #{model},#{inventory},
+            #{minimum_inventory},#{use_years},#{single_price}, #{length},
+            #{width},#{high},#{manufacturer}, #{supplier},#{inventory_unit},
+            #{procurement_cycle},#{minimum_order_quantity},#{position},#{file_url},#{project_id},
+            now(),#{assets_id}
+        )
+    </insert>
+
+    <!-- 修改备件信息 -->
+    <update id="updateSepareparts" parameterType="java.util.HashMap">
+        update `elcm_spareparts`
+        <set>
+            <if test="type_id != null">`type`=#{type_id},</if>
+            <if test="number != null">`number`=#{number},</if>
+            <if test="name != null">`name`=#{name},</if>
+            <if test="model != null">model=#{model},</if>
+            <if test="inventory != null">inventory=#{inventory},</if>
+            <if test="minimum_inventory != null">minimum_inventory=#{minimum_inventory},</if>
+            <if test="use_years != null">use_years=#{use_years},</if>
+            <if test="single_price != null">single_price=#{single_price},</if>
+            <if test="length != null">`length`=#{length},</if>
+            <if test="width != null">width=#{width},</if>
+            <if test="high != null">high=#{high},</if>
+            <if test="manufacturer != null">`manufacturer`=#{manufacturer},</if>
+            <if test="supplier != null">supplier=#{supplier},</if>
+            <if test="inventory_unit != null">inventory_unit=#{inventory_unit},</if>
+            <if test="procurement_cycle != null">procurement_cycle=#{procurement_cycle},</if>
+            <if test="minimum_order_quantity != null">minimum_order_quantity=#{minimum_order_quantity},</if>
+            <if test="position != null">`position`=#{position},</if>
+            <if test="file_url != null">file_url=#{file_url},</if>
+            <if test="assets_id != null">assets_id=#{assets_id},</if>
+        </set>
+        where id=#{spareparts_id}
+    </update>
+
+    <!-- 删除备件信息 -->
+    <update id="deleteSepareparts" parameterType="java.util.HashMap">
+        delete from `elcm_spareparts`
+        where id=#{spareparts_id}
+    </update>
+
+    <!-- 更新备件库存信息 -->
+    <update id="updateSeparepartsInventory" parameterType="java.util.HashMap">
+        update `elcm_spareparts`
+        <set>
+            <if test="inventory != null">inventory=inventory+#{inventory},</if>
+        </set>
+        where id=#{spareparts_id}
+    </update>
+
+    <!-- 查询备件关联设备信息 -->
+    <select id="getDevicesRelation" resultType="java.lang.Integer">
+        SELECT
+            elcm_spareparts_device_relation.device_id
+        FROM
+            elcm_spareparts_device_relation
+        WHERE
+            elcm_spareparts_device_relation.spareparts_id = #{spareparts_id}
+    </select>
+
+    <!-- 添加备件关联设备信息 -->
+    <insert id="addDevicesRelation" parameterType="java.util.HashMap">
+        INSERT INTO `elcm_spareparts_device_relation` (
+        `spareparts_id`, `device_id`
+        )
+        VALUES
+        <foreach collection ="deviceIdList" item="each" index= "index" separator =",">
+            (
+            #{spareparts_id},#{each}
+            )
+        </foreach >
+    </insert>
+
+    <!-- 删除备件关联设备信息 -->
+    <delete id="deleteDevicesRelation" parameterType="java.util.HashMap">
+        delete from `elcm_spareparts_device_relation`
+        where spareparts_id=#{spareparts_id}
+    </delete>
+
+
+
+
+
+
+
+
+    <!--    ##############################备件入库###################################################-->
+    <!-- 入库记录查询 -->
+    <select id="getSeparepartsInRecord" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts_in_record.id AS record_id,
+            elcm_spareparts_in_record.number,
+            date_format(elcm_spareparts_in_record.in_time,'%Y-%m-%d') AS in_time,
+            `user`.`NAME` AS user_name,
+            elcm_spareparts_source.`NAME` AS source_name
+        FROM
+            elcm_spareparts_in_record
+            LEFT JOIN `user` ON elcm_spareparts_in_record.in_user = `user`.id
+            LEFT JOIN elcm_spareparts_source ON elcm_spareparts_in_record.source_id = elcm_spareparts_source.id
+        WHERE
+            elcm_spareparts_in_record.project_id = #{project_id}
+            <choose>
+                <when test="(start_time != null and start_time !='') and (end_time != null and end_time !='')">
+                    AND date_format( elcm_spareparts_in_record.in_time, '%Y-%m-%d' ) BETWEEN #{start_time} AND #{end_time}
+                </when>
+                <when test="(start_time != null and start_time !='') and (end_time == null or end_time =='')">
+                    AND date_format( elcm_spareparts_in_record.in_time, '%Y-%m-%d' ) &gt;= #{start_time}
+                </when>
+                <when test="(start_time == null or start_time =='') and (end_time != null and end_time !='')">
+                    AND date_format( elcm_spareparts_in_record.in_time, '%Y-%m-%d' ) &lt;= #{end_time}
+                </when>
+                <otherwise>
+
+                </otherwise>
+            </choose>
+            <if test="number != null and number !=''">
+                AND elcm_spareparts_in_record.number LIKE concat('%',#{number},'%')
+            </if>
+            <if test="name != null and name !=''">
+                AND `user`.`NAME` LIKE concat('%',#{name},'%')
+            </if>
+            ORDER BY elcm_spareparts_in_record.number DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 入库记录查询->count -->
+    <select id="getSeparepartsInRecordCount" resultType="java.lang.Integer">
+        SELECT
+            count(elcm_spareparts_in_record.id)
+        FROM
+            elcm_spareparts_in_record
+        LEFT JOIN `user` ON elcm_spareparts_in_record.in_user = `user`.id
+        LEFT JOIN elcm_spareparts_source ON elcm_spareparts_in_record.source_id = elcm_spareparts_source.id
+        WHERE
+            elcm_spareparts_in_record.project_id = #{project_id}
+            <choose>
+                <when test="(start_time != null and start_time !='') and (end_time != null and end_time !='')">
+                    AND date_format( elcm_spareparts_in_record.in_time, '%Y-%m-%d' ) BETWEEN #{start_time} AND #{end_time}
+                </when>
+                <when test="(start_time != null and start_time !='') and (end_time == null or end_time =='')">
+                    AND date_format( elcm_spareparts_in_record.in_time, '%Y-%m-%d' ) &gt;= #{start_time}
+                </when>
+                <when test="(start_time == null or start_time =='') and (end_time != null and end_time !='')">
+                    AND date_format( elcm_spareparts_in_record.in_time, '%Y-%m-%d' ) &lt;= #{end_time}
+                </when>
+                <otherwise>
+
+                </otherwise>
+            </choose>
+            <if test="number != null and number !=''">
+                AND elcm_spareparts_in_record.number LIKE concat('%',#{number},'%')
+            </if>
+            <if test="name != null and name !=''">
+                AND `user`.`NAME` LIKE concat('%',#{name},'%')
+            </if>
+        ORDER BY elcm_spareparts_in_record.number DESC
+    </select>
+
+    <!-- 单条入库记录查询 -->
+    <select id="getSeparepartsInById" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts_in_record.id AS record_id,
+            elcm_spareparts_in_record.number,
+            elcm_spareparts_in_record.in_time,
+            `user`.`NAME` AS user_name,
+            elcm_spareparts_source.`NAME` AS source_name,
+            elcm_spareparts_in_record.source_id
+        FROM
+            elcm_spareparts_in_record
+        LEFT JOIN `user` ON elcm_spareparts_in_record.in_user = `user`.id
+        LEFT JOIN elcm_spareparts_source ON elcm_spareparts_in_record.source_id = elcm_spareparts_source.id
+        WHERE
+            elcm_spareparts_in_record.project_id = #{project_id}
+            AND elcm_spareparts_in_record.id = #{record_id}
+        LIMIT 1
+    </select>
+
+    <!-- 获取单条入库记录下的备件采购列表 -->
+    <select id="getSeparepartsInList" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts_in.spareparts_id,
+            elcm_spareparts_in.amount,
+            elcm_spareparts.number,
+            elcm_spareparts.`name`,
+            elcm_spareparts.model,
+            elcm_spareparts_type.`name` AS type_name,
+            elcm_spareparts.inventory,
+            elcm_spareparts.position
+        FROM
+            elcm_spareparts_in
+            LEFT JOIN elcm_spareparts ON elcm_spareparts_in.spareparts_id = elcm_spareparts.id
+            LEFT JOIN elcm_spareparts_type ON elcm_spareparts.type = elcm_spareparts_type.id
+        WHERE
+            elcm_spareparts_in.record_id = #{record_id}
+    </select>
+
+    <!-- 入库单新增-->
+    <insert id="addSeparepartsInRecord" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `elcm_spareparts_in_record`
+            ( `number`, `in_time`, `in_user`, `source_id`, `project_id` )
+        VALUES
+            (#{number}, #{in_time}, #{user_id}, #{source_id}, #{project_id} )
+    </insert>
+
+    <!-- 入库单修改-->
+    <update id="updateSeparepartsInRecord" parameterType="java.util.HashMap">
+        update `elcm_spareparts_in_record`
+        <set>
+            <if test="source_id != null">`source_id`=#{source_id},</if>
+            <if test="in_time != null">`in_time`=#{in_time},</if>
+        </set>
+        where id=#{record_id}
+    </update>
+
+    <!-- 入库单删除-->
+    <delete id="deleteSeparepartsInRecord" parameterType="java.util.HashMap">
+        delete from `elcm_spareparts_in_record`
+        where id=#{record_id}
+    </delete>
+
+    <!-- 入库单采购列表删除-->
+    <delete id="deleteSeparepartsInList" parameterType="java.util.HashMap">
+        delete from `elcm_spareparts_in`
+        where record_id=#{record_id}
+    </delete>
+
+    <!-- 入库单采购列表批量添加-->
+    <insert id="addSeparepartsInList" parameterType="java.util.HashMap">
+        INSERT INTO `elcm_spareparts_in`
+            ( `spareparts_id`, `amount`, `record_id` )
+        VALUES
+        <foreach collection ="separepartsList" item="map" index= "index" separator =",">
+            (#{map.spareparts_id}, #{map.amount}, #{record_id})
+        </foreach >
+    </insert>
+
+
+
+
+    <!--    ##############################备件出库管理###################################################-->
+    <!-- 备件申请列表查询 -->
+    <select id="getSeparepartsApply" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts_apply.id AS apply_id,
+            elcm_spareparts_apply.apply_number,
+            date_format(elcm_spareparts_apply.apply_time,'%Y-%m-%d') AS apply_time,
+            `user`.`NAME` AS user_name,
+            elcm_approval_type.type_name
+        FROM
+            elcm_spareparts_apply
+        LEFT JOIN `user` ON elcm_spareparts_apply.apply_user = `user`.id
+        LEFT JOIN elcm_approval_type ON elcm_approval_type.id = elcm_spareparts_apply.type_id
+        WHERE
+            elcm_spareparts_apply.project_id = #{project_id}
+            <choose>
+                <when test="(start_time != null and start_time !='') and (end_time != null and end_time !='')">
+                    AND date_format( elcm_spareparts_apply.apply_time, '%Y-%m-%d' ) BETWEEN #{start_time} AND #{end_time}
+                </when>
+                <when test="(start_time != null and start_time !='') and (end_time == null or end_time =='')">
+                    AND date_format( elcm_spareparts_apply.apply_time, '%Y-%m-%d' ) &gt;= #{start_time}
+                </when>
+                <when test="(start_time == null or start_time =='') and (end_time != null and end_time !='')">
+                    AND date_format( elcm_spareparts_apply.apply_time, '%Y-%m-%d' ) &lt;= #{end_time}
+                </when>
+                <otherwise>
+
+                </otherwise>
+            </choose>
+            <if test = "name != null and name !=''" >
+                AND `user`.`NAME` LIKE concat('%',#{name},'%')
+            </if>
+            ORDER BY elcm_spareparts_apply.apply_time DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 备件申请列表查询->count -->
+    <select id="getSeparepartsApplyCount" resultType="java.lang.Integer">
+        SELECT
+            count(elcm_spareparts_apply.id)
+        FROM
+            elcm_spareparts_apply
+        LEFT JOIN `user` ON elcm_spareparts_apply.apply_user = `user`.id
+        LEFT JOIN elcm_approval_type ON elcm_approval_type.id = elcm_spareparts_apply.type_id
+        WHERE
+            elcm_spareparts_apply.project_id = #{project_id}
+            <choose>
+                <when test="(start_time != null and start_time !='') and (end_time != null and end_time !='')">
+                    AND date_format( elcm_spareparts_apply.apply_time, '%Y-%m-%d' ) BETWEEN #{start_time} AND #{end_time}
+                </when>
+                <when test="(start_time != null and start_time !='') and (end_time == null or end_time =='')">
+                    AND date_format( elcm_spareparts_apply.apply_time, '%Y-%m-%d' ) &gt;= #{start_time}
+                </when>
+                <when test="(start_time == null or start_time =='') and (end_time != null and end_time !='')">
+                    AND date_format( elcm_spareparts_apply.apply_time, '%Y-%m-%d' ) &lt;= #{end_time}
+                </when>
+                <otherwise>
+
+                </otherwise>
+            </choose>
+            <if test = "name != null and name !=''" >
+                AND `user`.`NAME` LIKE concat('%',#{name},'%')
+            </if>
+        ORDER BY elcm_spareparts_apply.apply_time DESC
+    </select>
+
+    <!-- 根据备件申请id查询单个备件申请 -->
+    <select id="getSeparepartsApplyById" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts_apply.id AS apply_id,
+            elcm_spareparts_apply.apply_number,
+            date_format(elcm_spareparts_apply.apply_time,'%Y-%m-%d') AS apply_time,
+            `user`.`NAME` AS user_name,
+            elcm_approval_type.type_name,
+            elcm_spareparts_apply.apply_user
+        FROM
+            elcm_spareparts_apply
+        LEFT JOIN `user` ON elcm_spareparts_apply.apply_user = `user`.id
+        LEFT JOIN elcm_approval_type ON elcm_approval_type.id = elcm_spareparts_apply.type_id
+        WHERE elcm_spareparts_apply.id = #{apply_id}
+    </select>
+
+    <!-- 查询备件申请下的备件清单 -->
+    <select id="getSeparepartsApplyOut" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts_apply_out.spareparts_id,
+            elcm_spareparts_apply_out.amount,
+            elcm_spareparts_apply_out.out_amount,
+            elcm_spareparts_type.`name` AS type_name,
+            elcm_spareparts.number,
+            elcm_spareparts.`name`,
+            elcm_spareparts.model,
+            elcm_spareparts.inventory
+        FROM
+            elcm_spareparts_apply_out
+        LEFT JOIN elcm_spareparts ON elcm_spareparts.id = elcm_spareparts_apply_out.spareparts_id
+        LEFT JOIN elcm_spareparts_type ON elcm_spareparts.type = elcm_spareparts_type.id
+        WHERE elcm_spareparts_apply_out.apply_id = #{apply_id}
+    </select>
+
+    <!-- 出库单新增-->
+    <insert id="addSeparepartsOutRecord" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `elcm_spareparts_out_record`
+            ( `number`, `out_time`, `out_user`, `source_name`, `apply_user`, `draw_user`, `apply_time`, `project_id`, `apply_id` )
+        VALUES
+            (#{number}, #{out_time}, #{user_id}, #{source_name}, #{apply_user}, #{draw_user}, #{apply_time}, #{project_id},#{apply_id} )
+    </insert>
+
+    <!-- 出库单出库列表批量添加-->
+    <insert id="addSeparepartsOutList" parameterType="java.util.HashMap">
+        INSERT INTO `elcm_spareparts_out`
+        ( `spareparts_id`, `amount`, `record_id` )
+        VALUES
+        <foreach collection ="separepartsList" item="map" index= "index" separator =",">
+            (#{map.spareparts_id}, #{map.amount}, #{record_id})
+        </foreach >
+    </insert>
+
+    <!-- 出库明细列表查询 -->
+    <select id="getSeparepartsOutRecord" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts_out_record.id AS record_id,
+            elcm_spareparts_out_record.number,
+            date_format(elcm_spareparts_out_record.out_time,'%Y-%m-%d') AS out_time,
+            (SELECT name FROM `user` WHERE `user`.id = elcm_spareparts_out_record.out_user LIMIT 1) AS out_user,
+            (SELECT name FROM `user` WHERE `user`.id = elcm_spareparts_out_record.apply_user LIMIT 1) AS apply_user,
+            (SELECT name FROM `user` WHERE `user`.id = elcm_spareparts_out_record.draw_user LIMIT 1) AS draw_user,
+            elcm_spareparts_out_record.source_name,
+            elcm_spareparts_out_record.apply_id
+        FROM
+            elcm_spareparts_out_record
+        WHERE
+            elcm_spareparts_out_record.project_id = #{project_id}
+            <choose>
+                <when test="(start_time != null and start_time !='') and (end_time != null and end_time !='')">
+                    AND date_format( elcm_spareparts_out_record.out_time, '%Y-%m-%d' ) BETWEEN #{start_time} AND #{end_time}
+                </when>
+                <when test="(start_time != null and start_time !='') and (end_time == null or end_time =='')">
+                    AND date_format( elcm_spareparts_out_record.out_time, '%Y-%m-%d' ) &gt;= #{start_time}
+                </when>
+                <when test="(start_time == null or start_time =='') and (end_time != null and end_time !='')">
+                    AND date_format( elcm_spareparts_out_record.out_time, '%Y-%m-%d' ) &lt;= #{end_time}
+                </when>
+                <otherwise>
+
+                </otherwise>
+            </choose>
+            <if test="number != null and number !=''">
+                AND elcm_spareparts_out_record.number LIKE concat('%',#{number},'%')
+            </if>
+            <if test="name != null and name !=''">
+                AND ( SELECT NAME FROM `user` WHERE `user`.id = elcm_spareparts_out_record.out_user LIMIT 1 ) LIKE concat('%',#{name},'%')
+            </if>
+            ORDER BY elcm_spareparts_out_record.number DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 出库明细列表查询->count -->
+    <select id="getSeparepartsOutRecordCount" resultType="java.lang.Integer">
+        SELECT
+            count(elcm_spareparts_out_record.id)
+        FROM
+            elcm_spareparts_out_record
+        WHERE
+            elcm_spareparts_out_record.project_id = #{project_id}
+            <choose>
+                <when test="(start_time != null and start_time !='') and (end_time != null and end_time !='')">
+                    AND date_format( elcm_spareparts_out_record.out_time, '%Y-%m-%d' ) BETWEEN #{start_time} AND #{end_time}
+                </when>
+                <when test="(start_time != null and start_time !='') and (end_time == null or end_time =='')">
+                    AND date_format( elcm_spareparts_out_record.out_time, '%Y-%m-%d' ) &gt;= #{start_time}
+                </when>
+                <when test="(start_time == null or start_time =='') and (end_time != null and end_time !='')">
+                    AND date_format( elcm_spareparts_out_record.out_time, '%Y-%m-%d' ) &lt;= #{end_time}
+                </when>
+                <otherwise>
+
+                </otherwise>
+            </choose>
+            <if test="number != null and number !=''">
+                AND elcm_spareparts_out_record.number LIKE concat('%',#{number},'%')
+            </if>
+            <if test="name != null and name !=''">
+                AND ( SELECT NAME FROM `user` WHERE `user`.id = elcm_spareparts_out_record.out_user LIMIT 1 ) LIKE concat('%',#{name},'%')
+            </if>
+        ORDER BY elcm_spareparts_out_record.number DESC
+    </select>
+
+
+    <!-- 出库单修改-->
+    <update id="updateSeparepartsOutRecord" parameterType="java.util.HashMap">
+        update `elcm_spareparts_out_record`
+        <set>
+            <if test="source_name != null">`source_name`=#{source_name},</if>
+            <if test="apply_user != null">`apply_user`=#{apply_user},</if>
+            <if test="apply_time != null">`apply_time`=#{apply_time},</if>
+            <if test="draw_user != null">`draw_user`=#{draw_user},</if>
+        </set>
+        where id=#{record_id}
+    </update>
+
+    <!-- 出库单删除-->
+    <delete id="deleteSeparepartsOutRecord" parameterType="java.util.HashMap">
+        delete from `elcm_spareparts_out_record`
+        where id=#{record_id}
+    </delete>
+
+    <!-- 出库单采购列表删除-->
+    <delete id="deleteSeparepartsOutList" parameterType="java.util.HashMap">
+        delete from `elcm_spareparts_out`
+        where record_id=#{record_id}
+    </delete>
+
+
+    <!-- 备件申请记录新增-->
+    <insert id="addSeparepartsApply" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `elcm_spareparts_apply`
+            ( `apply_user`, `apply_time`, `type_id`, `apply_number`, `project_id`)
+        VALUES
+            (#{user_id}, now(), #{type_id}, #{apply_number}, #{project_id})
+    </insert>
+
+    <!-- 备件申请备件列表批量添加-->
+    <insert id="addSeparepartsApplyList" parameterType="java.util.HashMap">
+        INSERT INTO `elcm_spareparts_apply_out`
+        ( `spareparts_id`, `amount`, `apply_id`, `out_amount` )
+        VALUES
+        <foreach collection ="separepartsList" item="map" index= "index" separator =",">
+            (#{map.spareparts_id}, #{map.amount}, #{apply_id}, 0)
+        </foreach >
+    </insert>
+
+    <!-- 根据申请备件工单类型和工单号查询所有工单申请记录 -->
+    <select id="getSeparepartsApplyList" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts_apply.id AS apply_id,
+            `user`.name,
+            date_format(elcm_spareparts_apply.apply_time,'%Y-%m-%d %H:%i:%s') AS apply_time
+        FROM
+            elcm_spareparts_apply
+            LEFT JOIN `user` ON elcm_spareparts_apply.apply_user = `user`.id
+        WHERE
+            elcm_spareparts_apply.type_id = #{type_id}
+            AND elcm_spareparts_apply.apply_number = #{apply_number}
+    </select>
+
+    <!-- 根据申请id获取备件申请列表 -->
+    <select id="getSeparepartsApplyOutList" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts_apply_out.amount,
+            elcm_spareparts_apply_out.out_amount,
+            elcm_spareparts.number,
+            elcm_spareparts.`name`,
+            elcm_spareparts.model,
+            elcm_spareparts.inventory,
+            elcm_spareparts_type.`name` AS type_name
+        FROM
+            elcm_spareparts_apply_out
+            LEFT JOIN elcm_spareparts ON elcm_spareparts_apply_out.spareparts_id = elcm_spareparts.id
+            LEFT JOIN elcm_spareparts_type ON elcm_spareparts.type = elcm_spareparts_type.id
+        WHERE
+            elcm_spareparts_apply_out.apply_id = #{apply_id}
+    </select>
+
+    <!-- 更新备件申请已出库数量信息 -->
+    <update id="updateSeparepartsApplyOut" parameterType="java.util.HashMap">
+        update `elcm_spareparts_apply_out`
+        <set>
+            <if test="inventory != null">out_amount=out_amount-#{inventory},</if>
+        </set>
+        where apply_id=#{apply_id} AND spareparts_id = #{spareparts_id}
+    </update>
+
+    <!-- 单条出库记录查询 -->
+    <select id="getSeparepartsOutById" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts_out_record.id AS record_id,
+            elcm_spareparts_out_record.number,
+            elcm_spareparts_out_record.out_time,
+            elcm_spareparts_out_record.apply_time,
+            elcm_spareparts_out_record.out_user,
+            elcm_spareparts_out_record.apply_user,
+            elcm_spareparts_out_record.draw_user,
+            elcm_spareparts_out_record.source_name,
+            elcm_spareparts_out_record.apply_id,
+            (SELECT name FROM `user` WHERE `user`.id = elcm_spareparts_out_record.out_user LIMIT 1) AS out_user_name,
+            (SELECT name FROM `user` WHERE `user`.id = elcm_spareparts_out_record.apply_user LIMIT 1) AS apply_user_name,
+            (SELECT name FROM `user` WHERE `user`.id = elcm_spareparts_out_record.draw_user LIMIT 1) AS draw_user_name
+        FROM
+            elcm_spareparts_out_record
+        WHERE
+            elcm_spareparts_out_record.project_id = #{project_id}
+            AND elcm_spareparts_out_record.id = #{record_id}
+        LIMIT 1
+    </select>
+
+    <!-- 获取单条出库记录下的备件出库列表 -->
+    <select id="getSeparepartsOutList" resultType="java.util.HashMap">
+        SELECT
+            elcm_spareparts_out.spareparts_id,
+            elcm_spareparts_out.amount,
+            elcm_spareparts.number,
+            elcm_spareparts.`name`,
+            elcm_spareparts.model,
+            elcm_spareparts_type.`name` AS type_name,
+            elcm_spareparts.inventory,
+            elcm_spareparts.position
+        FROM
+            elcm_spareparts_out
+            LEFT JOIN elcm_spareparts ON elcm_spareparts_out.spareparts_id = elcm_spareparts.id
+            LEFT JOIN elcm_spareparts_type ON elcm_spareparts.type = elcm_spareparts_type.id
+        WHERE
+            elcm_spareparts_out.record_id = #{record_id}
+    </select>
+
+
+
+
+</mapper>

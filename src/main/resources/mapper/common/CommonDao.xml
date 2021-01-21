@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.common.dao.CommonDao">
+
+
+	<!-- 园区列表 -->
+	<select id="getFactoryByProjectid" resultType="java.util.HashMap">
+		SELECT f.id AS factory_id,f.factory_name FROM `project_factory` f
+		where f.project_id=#{project_id}
+		<if test="factory_id != null and factory_id != ''">
+			and f.id = #{factory_id}
+		</if>
+	</select>
+
+
+
+    <!-- 获取通讯机信息 -->
+    <select id="getTGInfoByName" resultType="java.util.HashMap">
+        select project_id,factory_id,tg_name,tg_rtdb,sn from `tg_info`
+        where project_id=#{projectId}
+        <if test="tgName != null and tgName  != ''">
+            and tg_rtdb=#{tgName}
+        </if>
+        <if test="factoryId != null and factoryId  != ''  and factoryId  != 0">
+            and factory_id=#{factoryId}
+        </if>
+    </select>
+
+    <!-- 保存操作日志-->
+    <insert id="setOperationLogs" parameterType="com.sl.common.entity.OperationLogs" >
+		 INSERT INTO `operation_logs`
+		(uid,project_id,ip,client,request_uri,device_type_relation_id,behavior_type,detailed_type,behavior_result,log_time)
+		VALUES
+		(	#{uid},
+			#{project_id},
+			#{ip},
+			#{client},
+			#{request_uri},
+			#{device_type_relation_id},
+			#{behavior_type},
+			#{detailed_type},
+			#{behavior_result},
+			NOW()
+		)
+	</insert>
+
+
+	<select id="getSjfAllProject" resultType="java.util.HashMap">
+		SELECT h.project_id,p.code_name FROM `sjf_house` h
+		INNER JOIN `project_info`p on h.project_id=p.id
+		WHERE 1=1
+		<if test="is_all == null">
+			and  h.is_check_in=1
+		</if>
+		<if test="project_id != null">
+			and h.project_id=#{project_id}
+		</if>
+		GROUP BY h.project_id
+	</select>
+
+	<select id="getSjfAllMeterData" resultType="com.sl.common.entity.SjfYesterdayData">
+        SELECT h.id houseId,h.check_in_time checkInTime,h.elec_meter_id elecMeterId,t.charge_type chargeType,t.parity_price parityPrice,
+        t.peak_price peakPrice,t.plain_price plainPrice,t.valley_price valleyPrice,t.second_price secondPrice,t.third_price thirdPrice,
+        de.peak,de.plain,de.valley,de.power,
+        l.first_ladder firstLadder,l.second_ladder secondLadder,p.code_name codeName,concat(m.tg_id,'_',m.device_name) tgName FROM `sjf_house` h
+        LEFT JOIN `sjf_house_type_now` t ON h.type_id=t.id
+		LEFT JOIN `project_info` p ON h.project_id=p.id
+		LEFT JOIN `elec_meter` m on h.elec_meter_id=m.id
+        LEFT JOIN
+        (SELECT d.meter_id,d.peak,d.plain,d.valley,d.power FROM `day_data_ep_peak_plain_valley` d WHERE d.date= #{today})de
+        ON h.elec_meter_id=de.meter_id
+        LEFT JOIN `sjf_charge_ladder_now` l on h.project_id=l.project_id
+        WHERE h.project_id=#{project_id}
+        ORDER BY h.id
+    </select>
+
+	<select id="getSjfMeterDataByProject" resultType="java.util.HashMap">
+		SELECT h.id house_id,h.house_name,h.phone,h.elec_meter_number,h.check_in_time,h.check_in_ep,
+		h.cumulative_amount,t.charge_type,t.parity_price,t.peak_price,t.plain_price,
+		t.valley_price,t.second_price,t.third_price,h.elec_meter_id,m.tg_id tg,m.device_name,g.sn
+		FROM `sjf_house` h
+		LEFT JOIN `sjf_house_type_now` t on h.type_id=t.id
+		LEFT JOIN `elec_meter` m on h.elec_meter_id=m.id
+		LEFT JOIN `tg_info` g on m.tg_id=g.TG_RTDB
+		WHERE 1=1
+		<if test="is_all == null">
+			and  h.is_check_in=1
+		</if>
+		<if test="project_id != null and project_id !=''">
+			and h.project_id=#{project_id}
+		</if>
+		<if test="tg != null and tg !=''">
+			and m.tg_id=#{tg}
+		</if>
+	</select>
+
+	<!-- 获取电表的区间ep-->
+	<select id="getSjfYearDataByList" resultType="java.util.HashMap">
+		SELECT meter_id,power FROM `year_data_ep` ep
+		WHERE  ep.date	=#{year}
+		and ep.meter_id in
+		<foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+			#{list.elec_meter_id}
+		</foreach>
+	</select>
+
+	<!-- 获取分户区间总用电量和总钱 -->
+	<select id="getSjfHouseSumEpFees" resultType="java.util.HashMap">
+		SELECT SUM(total_power) as total_power,SUM(total_fees) as total_fees FROM `sjf_house_day_ep_fees` ep
+		WHERE 1=1
+		<if test="house_id != null and house_id !=''">
+			and ep.house_id=#{house_id}
+		</if>
+		<if test="begin_time != null and end_time !=''">
+			AND ep.date BETWEEN #{begin_time} AND #{end_time}
+		</if>
+	</select>
+
+	<delete id="deleteSjfAllSjfData" parameterType="java.util.HashMap">
+		delete from `sjf_house_day_ep_fees`
+		WHERE `date`=#{date} AND house_id in
+		<foreach collection="list" item="houseId" index="index" open="(" close=")" separator=",">
+			#{houseId}
+		</foreach>
+	</delete>
+	<insert id="insertSjfAllSjfData" parameterType="java.util.HashMap">
+		insert into `sjf_house_day_ep_fees`
+		(
+		`house_id`,
+		`parity_fees`,
+		`peak_ep`,
+		`plain_ep`,
+		`valley_ep`,
+		`peak_fees`,
+		`plain_fees`,
+		`valley_fees`,
+		`first_ep`,
+		`second_ep`,
+		`third_ep`,
+		`second_increment_fees`,
+		`third_increment_fees`,
+		`total_power`,
+		`total_fees`,
+		`date`
+		)
+		values
+		<foreach collection ="list" item="sjfEpFees" index= "index" separator =",">
+			(
+			#{sjfEpFees.houseId},
+			#{sjfEpFees.parityFees},
+			#{sjfEpFees.peakEp},
+			#{sjfEpFees.plainEp},
+			#{sjfEpFees.valleyEp},
+			#{sjfEpFees.peakFees},
+			#{sjfEpFees.plainFees},
+			#{sjfEpFees.valleyFees},
+			#{sjfEpFees.firstEp},
+			#{sjfEpFees.secondEp},
+			#{sjfEpFees.thirdEp},
+			#{sjfEpFees.secondIncrementFees},
+			#{sjfEpFees.thirdIncrementFees},
+			#{sjfEpFees.totalPower},
+			#{sjfEpFees.totalFees},
+			#{sjfEpFees.date}
+			)
+		</foreach >
+	</insert>
+	<!-- 阶梯相关-->
+	<select id="getSjfLadder" resultType="java.util.HashMap">
+		SELECT  l.first_ladder,l.second_ladder FROM `sjf_charge_ladder_now` l
+		where 1=1
+		<if test="project_id != null and project_id !=''">
+			and l.project_id=#{project_id}
+		</if>
+	</select>
+
+	<!-- 获取分户区间今日电量 -->
+	<select id="getSjfTodayPower" resultType="java.util.HashMap">
+		SELECT ep.meter_id,ep.peak,ep.plain,ep.valley,ep.power FROM `day_data_ep_peak_plain_valley` ep
+		WHERE 1=1
+		<if test="date != null and date !=''">
+			AND ep.date = #{date}
+		</if>
+		<if test="list != null">
+			AND ep.meter_id in
+			<foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+				#{list.elec_meter_id}
+			</foreach>
+		</if>
+		<if test="meter_id != null">
+			AND ep.meter_id =#{meter_id}
+		</if>
+	</select>
+
+
+	<select id="getElecTag" resultType="java.util.HashMap">
+        select id,tag_name,e.desc tag_desc from `elec_tag` e
+        order by  id ASC
+    </select>
+
+
+
+</mapper>

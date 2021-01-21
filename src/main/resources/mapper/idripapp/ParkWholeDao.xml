@@ -1,0 +1,181 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.ParkWholeDao">
+
+
+    <resultMap id="parkTask" type="com.sl.idripapp.entity.TaskPark">
+        <id column="id" jdbcType="INTEGER" property="id" />
+        <result column="status" jdbcType="INTEGER" property="status" />
+        <result column="statusName" jdbcType="VARCHAR" property="statusName" />
+        <result column="taskType" jdbcType="INTEGER" property="taskType" />
+        <result column="taskTypeName" jdbcType="VARCHAR" property="taskTypeName" />
+        <result column="module" jdbcType="INTEGER" property="module" />
+
+        <collection property="taskDevice" ofType="com.sl.idripapp.entity.TaskDevice" >
+            <result column="deviceName" jdbcType="VARCHAR" property="deviceName" />
+            <result column="planStartTime" jdbcType="VARCHAR" property="planStartTime" />
+            <result column="planEndTime" jdbcType="VARCHAR" property="planEndTime" />
+            <result column="reportTime" jdbcType="VARCHAR" property="reportTime" />
+            <result column="urgency" jdbcType="VARCHAR" property="urgency" />
+            <result column="executor" jdbcType="VARCHAR" property="executor" />
+        </collection>
+
+        <collection property="taskFire" ofType="com.sl.idripapp.entity.TaskFire" >
+            <result column="patrolName" jdbcType="VARCHAR" property="patrolName" />
+            <result column="fireNumber" jdbcType="VARCHAR" property="fireNumber" />
+            <result column="patrolDate" jdbcType="VARCHAR" property="patrolDate" />
+            <result column="executor" jdbcType="VARCHAR" property="executor" />
+        </collection>
+    </resultMap>
+
+
+
+
+ <!-- ============================  园区整体============================    -->
+    <!--&lt;!&ndash;所有设备数量&ndash;&gt;-->
+    <select id="getDeviceInfoCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `elcm_device_info` e
+        WHERE e.project_id=#{project_id}
+        AND e.status_id in
+        <foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+            #{list}
+        </foreach>
+    </select>
+
+
+    <!--&lt;!&ndash;园区能耗&ndash;&gt;-->
+    <select id="getParkYearEnergy" resultType="java.util.Map">
+       SELECT CAST(a.date AS CHAR) AS date,CAST(SUM((a.power)) AS decimal(15,2)) AS power
+         FROM `${dataTable}` a
+        INNER JOIN `${meterTable}` b ON a.meter_id=b.id
+        WHERE b.project_id=#{project_id}
+        AND a.date BETWEEN #{bdate} AND #{edate}
+        GROUP BY a.date
+    </select>
+
+
+    <!--&lt;!&ndash;维护保养任务&ndash;&gt;-->
+    <select id="getAllDeviceTaskRecord" resultType="java.util.Map">
+       SELECT *
+         FROM `elcm_device_task_record` a
+        WHERE a.project_id=#{project_id}
+    </select>
+
+    <!--&lt;!&ndash;维护保养任务&ndash;&gt;-->
+    <select id="getAllDeviceRepair" resultType="java.util.Map">
+       SELECT *
+         FROM `elcm_malfunction` a
+        WHERE a.project_id=#{project_id} AND a.is_repair=1
+    </select>
+
+    <!--&lt;!&ndash;维护保养任务&ndash;&gt;-->
+    <select id="getAllFirePatrolLog" resultType="java.util.Map">
+       SELECT *
+       FROM `fire_patrol_log` a
+		INNER JOIN `fire_patrol` b ON a.patrol_id=b.id
+        WHERE b.project_id=#{project_id}
+    </select>
+
+
+    <!-- 平均维修时间 -->
+    <select id="getMalRepairAverageTime" resultType="java.lang.Double">
+        SELECT IFNULL(AVG(TIMESTAMPDIFF(MINUTE,report_time,repair_time)),0) as average_time
+        FROM `elcm_malfunction` m
+        WHERE m.is_repair=1 AND m.repair_status=6
+        AND m.project_id=#{project_id}
+    </select>
+
+
+    <insert id="addOpinion">
+		insert into opinion
+		(`opinion_desc`,`img`,`phone`,`user_name`)
+		values
+		(#{opinionDesc},#{img},#{phone},#{userName})
+	</insert>
+
+    <!-- 任务类型 -->
+    <select id="getTaskType" resultType="java.util.Map">
+        SELECT a.id typeId,a.type_name typeName
+        FROM `app_task_type` a
+    </select>
+    <!-- 任务状态 -->
+    <select id="getTaskStatus" resultType="java.util.Map">
+        SELECT a.id status,a.status_name statusName
+        FROM `app_task_status` a
+    </select>
+
+
+    <!-- 设备任务 -->
+    <select id="getMyDeviceTask" resultMap="parkTask">
+        SELECT r.id,r.`status`,s.status_name statusName,t.maintenance_type_id taskType,mt.maintenance_type_name taskTypeName,1 as module,d.device_name deviceName,
+        DATE_FORMAT(r.plan_start_time, '%Y年%m月%d日 %H:%i:%s') as planStartTime,
+        DATE_FORMAT(r.plan_end_time, '%Y年%m月%d日 %H:%i:%s') as planEndTime,
+        null as urgency,null as reportTime,u.`name` executor
+        FROM `elcm_device_task_record` r
+        INNER JOIN `elcm_device_task_relation` tr on r.relation_id=tr.id
+        INNER JOIN `elcm_device_info` d on tr.device_id=d.id
+        INNER JOIN `elcm_device_task` t on tr.task_id=t.id
+        INNER JOIN `elcm_device_task_record_status` s ON r.`status`=s.id
+        INNER JOIN `elcm_maintenance_type` mt on t.maintenance_type_id=mt.maintenance_type_id
+        LEFT JOIN `user` u ON r.user_id=u.id
+        WHERE t.project_id=#{projectId} AND r.user_id=#{userId}
+        <if test="status !='null' and status !='' and status !=null and status !=0">
+            AND r.`status`=#{status}
+        </if>
+        <if test="typeId !='null' and typeId !='' and typeId !=null and typeId !=0">
+            AND t.maintenance_type_id=#{typeId}
+        </if>
+
+        UNION ALL
+
+        SELECT m.id,m.`repair_status` `status`,s.status_name statusName,3 as taskType,'维修' as taskTypeName,1 as module,d.device_name deviceName,
+        null as plan_start_time,null as plan_end_time,
+        m.urgency,DATE_FORMAT(m.report_time, '%Y-%m-%d %H:%i:%s') as reportTime,u.`name` executor
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_malfunction_repair_status` s on m.`repair_status`=s.`status`
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        LEFT JOIN `user` u on m.repair_user=u.id
+        WHERE m.repair_number!='' AND m.project_id=#{projectId}  AND m.repair_user=#{userId}
+        <if test="status !='null' and status !='' and status !=null and status !=0">
+            AND m.repair_status=#{status}
+        </if>
+        <if test="typeId !='' and typeId !=null and typeId !=3 and typeId !=0">
+            AND m.id=0
+        </if>
+    </select>
+
+
+    <!-- 火灾任务 -->
+    <select id="getMyFireTask" resultMap="parkTask">
+        SELECT * FROM(SELECT l.id,
+        CASE l.state
+        WHEN 0 THEN 4
+        WHEN 1 THEN 6
+        WHEN 2 THEN 6
+        ELSE l.state
+        END `status`,
+        CASE l.state
+        WHEN 0 THEN '未完成'
+        WHEN 1 THEN '已完成'
+        WHEN 2 THEN '已完成'
+        ELSE l.state
+        END `statusName`,
+        4 as taskType,'巡检' as taskTypeName,2 as module,p.patrol_name patrolName,p.fire_number fireNumber,l.patrol_date
+        patrolDate,u.name executor
+        FROM `fire_patrol_log` l
+        INNER JOIN `fire_patrol` p ON l.patrol_id=p.id
+        INNER JOIN `app_register_user` u ON l.create_by=u.id
+        WHERE p.project_id=#{projectId} AND l.create_by=#{appUserId}
+        )t
+        WHERE 1=1
+        <if test="status !='null' and status !='' and status !=null and status !=0">
+            AND t.status=#{status}
+        </if>
+        <if test="typeId !='' and typeId !=null and typeId !=0">
+            AND t.taskType=#{typeId}
+        </if>
+</select>
+
+
+</mapper>

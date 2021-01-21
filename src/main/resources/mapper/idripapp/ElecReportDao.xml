@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.ElecReportDao">
+
+    <!-- 获取区域用能 分类的 配电室列表-->
+    <select id="getCategoryTransformerroom" resultType="java.util.HashMap">
+        SELECT
+                epcr.category_id AS category_id,
+                epcr.category_name AS category_name,
+                traroom.id AS rid
+                FROM
+                    elec_project_category_relation AS epcr
+                LEFT JOIN transformerroom AS traroom ON epcr.category_id = traroom.category_id
+                WHERE
+                    epcr.project_id = #{project_id}
+                AND epcr.category_type_id = 2
+                AND epcr.parent_category_id=0
+                AND epcr.factory_id = #{factory_id}
+                <if test="category_id != null and category_id != ''">
+                    and epcr.category_id = #{category_id}
+                </if>
+                ORDER BY
+                    epcr.category_id ASC
+    </select>
+
+    <!-- 获取区域用能 分类的 配电室列表 通过类型id-->
+    <select id="getCategoryByCategoryId" resultType="java.util.HashMap">
+        SELECT
+                    epcr.project_id AS project_id,
+                    epcr.category_type_id AS category_type,
+                    epcr.factory_id AS factory_id,
+                    epcr.category_id AS category_id,
+                    epcr.parent_category_id AS parent_category_id,
+                    epcr.category_name AS category_name,
+	                traroom.id AS transformerroom_id,
+	                ecmr.meter_id
+                FROM
+                    elec_project_category_relation AS epcr
+                LEFT JOIN transformerroom AS traroom ON epcr.category_id = traroom.category_id
+                 LEFT JOIN elec_category_meter_relation ecmr on epcr.category_id=ecmr.category_id
+                WHERE
+                   epcr.category_id = #{category_id}
+    </select>
+
+    <!-- //进线列表 category_type=3-->
+    <select id="getBranchList" resultType="java.util.HashMap">
+          SELECT epcr.category_type_id,epcr.factory_id,epcr.category_id,epcr.parent_category_id,epcr.category_name,ecmr.meter_id
+		   FROM
+          elec_project_category_relation epcr
+         LEFT JOIN elec_category_meter_relation ecmr on epcr.category_id=ecmr.category_id
+            WHERE
+            epcr.category_type_id = 3
+             and  epcr.parent_category_id=0
+             and  epcr.factory_id=#{factory_id}
+             and  epcr.project_id=#{project_id}
+        <if test="transformerroom_id != null and transformerroom_id != ''">
+            and   epcr.transformerroom_id = #{transformerroom_id}
+        </if>
+        LIMIT ${fromNum},${pageSize}
+    </select>
+    <!-- //进线列表 category_type=3-->
+    <select id="getBranchListCount" resultType="java.lang.Integer">
+          SELECT COUNT(*)
+		   FROM
+          elec_project_category_relation epcr
+         LEFT JOIN elec_category_meter_relation ecmr on epcr.category_id=ecmr.category_id
+            WHERE
+            epcr.category_type_id = 3
+             and  epcr.parent_category_id=0
+             and  epcr.factory_id=#{factory_id}
+             and  epcr.project_id=#{project_id}
+        <if test="transformerroom_id != null and transformerroom_id != ''">
+            and   epcr.transformerroom_id = #{transformerroom_id}
+        </if>
+    </select>
+
+    <!-- 获取能耗数据-->
+    <select id="getSingleDayData" resultType="java.util.HashMap">
+       SELECT meter_id,power_per_hour,power,`date` FROM `day_data_ep`
+                WHERE
+                `date` =#{date}
+                AND meter_id IN (${meterIds})
+        ORDER BY meter_id ASC,date ASC
+
+    </select>
+
+    <!-- 获取能耗数据-->
+    <select id="getSectionData" resultType="java.util.HashMap">
+       SELECT meter_id,power_per_hour,SUM(power) as power  FROM `day_data_ep`
+       WHERE
+       `date` BETWEEN #{start_date} AND #{end_date}
+       AND meter_id IN (${meterIds})
+        GROUP BY meter_id
+    </select>
+    <!-- 获取能耗数据-->
+    <select id="getSectionDataDetail" resultType="java.util.HashMap">
+       SELECT meter_id,power_per_hour,power,date FROM `day_data_ep`
+       WHERE
+       `date` BETWEEN #{start_date} AND #{end_date}
+       AND meter_id =#{meter_id}
+    </select>
+    <!-- 获取该进线的出线列表-->
+    <select id="getCategoryByParentId" resultType="java.util.HashMap">
+        SELECT epcr.category_type_id,epcr.factory_id,epcr.category_id,epcr.parent_category_id,epcr.category_name,ecmr.meter_id
+        FROM
+        elec_project_category_relation epcr
+        LEFT JOIN elec_category_meter_relation ecmr on epcr.category_id=ecmr.category_id
+        WHERE
+        epcr.category_type_id = 3
+        and  epcr.parent_category_id=#{parent_category_id}
+        and  epcr.factory_id=#{factory_id}
+        and  epcr.project_id=#{project_id}
+        LIMIT ${fromNum},${pageSize}
+    </select>
+    <!-- 获取该进线的出线列表-->
+    <select id="getCategoryByParentIdCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM
+        elec_project_category_relation epcr
+        LEFT JOIN elec_category_meter_relation ecmr on epcr.category_id=ecmr.category_id
+        WHERE
+        epcr.category_type_id = 3
+        and  epcr.parent_category_id=#{parent_category_id}
+        and  epcr.factory_id=#{factory_id}
+        and  epcr.project_id=#{project_id}
+    </select>
+
+
+    <select id="getUIData" resultType="java.util.HashMap">
+        SELECT ddu.detail,ddu.date,tag.tag_name as tag FROM `day_data_ui` ddu
+        LEFT JOIN elec_tag tag
+        ON tag.id=ddu.tag_id
+        WHERE ddu.meter_id=#{device_id}
+        AND tag.tag_name IN
+        <foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+            #{list}
+        </foreach>
+        and ddu.date = #{bdate}
+    </select>
+
+</mapper>

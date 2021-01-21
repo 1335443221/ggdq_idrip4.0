@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.AccountTrainDao">
+
+    <!-- 获取培训信息 -->
+    <select id="getTrainList" resultType="java.util.HashMap">
+        SELECT
+            t.id AS train_id,
+            ts.id AS train_sheet_id,
+            t.train_content,
+            t.trainer,
+            CONCAT( date_format( t.begin_date, '%Y-%m-%d' ), "~", date_format( t.end_date, '%Y-%m-%d' ) ) AS date
+        FROM
+            account_train_sheet ts
+            LEFT JOIN account_train t ON ts.train_id = t.id
+            LEFT JOIN app_register_user u ON t.attend_user = u.id
+            LEFT JOIN user_project_relation upr ON u.user_id = upr.uid
+        WHERE
+            upr.project_id = #{project_id}
+            <if test="searchContent != null and searchContent !=''">
+                AND (t.train_content like CONCAT('%',#{searchContent},'%') OR t.trainer like CONCAT('%',#{searchContent},'%'))
+            </if>
+        GROUP BY
+            t.train_content
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 获取培训信息->count -->
+    <select id="getTrainListCount" resultType="java.lang.Integer">
+        SELECT
+            count(ts.id)
+        FROM
+            account_train_sheet ts
+            LEFT JOIN account_train t ON ts.train_id = t.id
+            LEFT JOIN app_register_user u ON t.attend_user = u.id
+            LEFT JOIN user_project_relation upr ON u.user_id = upr.uid
+        WHERE
+            upr.project_id = #{project_id}
+            <if test="searchContent != null and searchContent !=''">
+                AND (t.train_content like CONCAT('%',#{searchContent},'%') OR t.trainer like CONCAT('%',#{searchContent},'%'))
+            </if>
+        GROUP BY
+            t.train_content
+    </select>
+
+    <!-- 获取培训信息 -->
+    <select id="getTrainSheetFiles" resultType="java.util.HashMap">
+        SELECT
+            id,
+            file_url,
+            file_name
+        FROM
+            account_train_sheet_file tsf
+        WHERE
+            train_sheet_id = #{train_sheet_id}
+    </select>
+
+    <!-- 获取参与人员 -->
+    <select id="getAttendUser" resultType="java.util.HashMap">
+        SELECT
+            u.id AS user_id,
+            u.`name` AS user_name
+        FROM
+            account_train_sheet ts
+            LEFT JOIN account_train t ON t.id = ts.train_id
+            LEFT JOIN app_register_user u ON t.attend_user = u.id
+        WHERE
+            ts.id = #{train_sheet_id}
+            <if test="uname != null and uname !=''">
+                AND u.`name` like CONCAT('%',#{uname},'%')
+            </if>
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 获取参与人员->count -->
+    <select id="getAttendUserCount" resultType="java.lang.Integer">
+        SELECT
+            count(u.id)
+        FROM
+            account_train_sheet ts
+            LEFT JOIN account_train t ON t.id = ts.train_id
+            LEFT JOIN app_register_user u ON t.attend_user = u.id
+        WHERE
+            ts.id = #{train_sheet_id}
+            <if test="uname != null and uname !=''">
+                AND u.`name` like CONCAT('%',#{uname},'%')
+            </if>
+    </select>
+
+    <!-- 获取参与人员详情 -->
+    <select id="getAttendUserDetail" resultType="java.util.HashMap">
+        SELECT
+            u.`name` AS user_name,
+            t.duration,
+            t.has_material,
+            t.academic_record,
+            t.remarks
+        FROM
+            account_train_sheet ts
+            LEFT JOIN account_train t ON t.id = ts.train_id
+            LEFT JOIN app_register_user u ON t.attend_user = u.id
+        WHERE
+            ts.id = #{train_sheet_id}
+            AND u.id = #{user_id}
+    </select>
+
+</mapper>

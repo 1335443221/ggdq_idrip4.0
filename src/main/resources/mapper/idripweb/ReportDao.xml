@@ -1,0 +1,448 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.ReportDao">
+
+    <insert id="insertTemperatureBatch" parameterType="java.util.Map">
+        insert into temperature_gaoxin (`date`,`hour`,in_temp,out_temp)
+        values
+        <foreach collection="list" item="item" index="" separator=",">
+            (#{item.date}, #{item.hour},#{item.in_temp}, #{item.out_temp})
+        </foreach>
+
+        <!--<foreach collection="map" index="index" item="item">
+            (#{id,jdbcType=INTEGER}, #{date,jdbcType=VARCHAR}, #{hour,jdbcType=DOUBLE},
+            #{in_temp,jdbcType=DOUBLE}, #{out_temp,jdbcType=DOUBLE})
+        </foreach>-->
+    </insert>
+
+    <insert id="insertRunningDataBatch" parameterType="java.util.Map" >
+        <!--insert into air_conditioner_running_gaoxin
+        (eva_water_in_temp, eva_water_out_temp, eva_temp, eva_pres, cond_water_in_temp,
+    cond_water_out_temp, cond_temp, cond_pres, lube_temp, lube_pres, lube_level, water_seg_temp,
+    water_seg_pres, water_collector_temp, water_collector_pres, frozen_pump_pres_in,
+    frozen_pump_pres_out, frozen_temp_pres_in, frozen_temp_pres_out, cooling_pump_pres_in,
+    cooling_pump_pres_out, cooling_temp_pres_in, cooling_temp_pres_out, mainframe_vol,
+    mainframe_elec, air_conditioner_number, mainframe_number, date, hour, unit_load,
+    out_temp, deliver, receiver, charger, remark)
+    values
+        <foreach collection="list" item="item" index="" separator=",">
+            (#{item.eva_water_in_temp}, #{item.eva_water_out_temp},#{item.eva_temp}, #{item.eva_pres},
+            #{item.cond_water_in_temp}, #{item.cond_water_out_temp},#{item.cond_temp}, #{item.cond_pres},
+            #{item.lube_temp}, #{item.lube_pres},#{item.lube_level}, #{item.water_seg_temp},
+            #{item.water_seg_pres}, #{item.water_collector_temp},#{item.water_collector_pres}, #{item.frozen_pump_pres_in},
+            #{item.frozen_pump_pres_out}, #{item.frozen_temp_pres_in},#{item.frozen_temp_pres_out}, #{item.cooling_pump_pres_in},
+            #{item.cooling_pump_pres_out}, #{item.cooling_temp_pres_in},#{item.cooling_temp_pres_out}, #{item.mainframe_vol},
+            #{item.mainframe_elec}, #{item.air_conditioner_number},#{item.mainframe_number}, #{item.date},
+            #{item.hour}, #{item.unit_load},#{item.out_temp}, #{item.deliver},
+            #{item.receiver}, #{item.charger},#{item.remark})
+        </foreach>-->
+        insert into air_conditioner_running_gaoxin
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="eva_water_in_temp != null">
+                eva_water_in_temp,
+            </if>
+            <if test="eva_water_out_temp != null">
+                eva_water_out_temp,
+            </if>
+            <if test="eva_temp != null">
+                eva_temp,
+            </if>
+            <if test="eva_pres != null">
+                eva_pres,
+            </if>
+            <if test="cond_water_in_temp != null">
+                cond_water_in_temp,
+            </if>
+            <if test="cond_water_out_temp != null">
+                cond_water_out_temp,
+            </if>
+            <if test="cond_temp != null">
+                cond_temp,
+            </if>
+            <if test="cond_pres != null">
+                cond_pres,
+            </if>
+            <if test="lube_temp != null">
+                lube_temp,
+            </if>
+            <if test="lube_pres != null">
+                lube_pres,
+            </if>
+            <if test="lube_level != null">
+                lube_level,
+            </if>
+            <if test="water_seg_temp != null">
+                water_seg_temp,
+            </if>
+            <if test="water_seg_pres != null">
+                water_seg_pres,
+            </if>
+            <if test="water_collector_temp != null">
+                water_collector_temp,
+            </if>
+            <if test="water_collector_pres != null">
+                water_collector_pres,
+            </if>
+            <if test="frozen_pump_pres_in != null">
+                frozen_pump_pres_in,
+            </if>
+            <if test="frozen_pump_pres_out != null">
+                frozen_pump_pres_out,
+            </if>
+            <if test="frozen_temp_pres_in != null">
+                frozen_temp_pres_in,
+            </if>
+            <if test="frozen_temp_pres_out != null">
+                frozen_temp_pres_out,
+            </if>
+            <if test="cooling_pump_pres_in != null">
+                cooling_pump_pres_in,
+            </if>
+            <if test="cooling_pump_pres_out != null">
+                cooling_pump_pres_out,
+            </if>
+            <if test="cooling_temp_pres_in != null">
+                cooling_temp_pres_in,
+            </if>
+            <if test="cooling_temp_pres_out != null">
+                cooling_temp_pres_out,
+            </if>
+            <if test="mainframe_vol != null">
+                mainframe_vol,
+            </if>
+            <if test="mainframe_elec != null">
+                mainframe_elec,
+            </if>
+            <if test="air_conditioner_number != null">
+                air_conditioner_number,
+            </if>
+            <if test="mainframe_number != null">
+                mainframe_number,
+            </if>
+            <if test="date != null">
+                date,
+            </if>
+            <if test="hour != null">
+                hour,
+            </if>
+            <if test="unit_load != null">
+                unit_load,
+            </if>
+            <if test="out_temp != null">
+                out_temp,
+            </if>
+            <if test="deliver != null">
+                deliver,
+            </if>
+            <if test="receiver != null">
+                receiver,
+            </if>
+            <if test="charger != null">
+                charger,
+            </if>
+            <if test="remark != null">
+                remark,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="eva_water_in_temp != null">
+                #{eva_water_in_temp},
+            </if>
+            <if test="eva_water_out_temp != null">
+                #{eva_water_out_temp},
+            </if>
+            <if test="eva_temp != null">
+                #{eva_temp},
+            </if>
+            <if test="eva_pres != null">
+                #{eva_pres},
+            </if>
+            <if test="cond_water_in_temp != null">
+                #{cond_water_in_temp},
+            </if>
+            <if test="cond_water_out_temp != null">
+                #{cond_water_out_temp},
+            </if>
+            <if test="cond_temp != null">
+                #{cond_temp},
+            </if>
+            <if test="cond_pres != null">
+                #{cond_pres},
+            </if>
+            <if test="lube_temp != null">
+                #{lube_temp},
+            </if>
+            <if test="lube_pres != null">
+                #{lube_pres},
+            </if>
+            <if test="lube_level != null">
+                #{lube_level},
+            </if>
+            <if test="water_seg_temp != null">
+                #{water_seg_temp},
+            </if>
+            <if test="water_seg_pres != null">
+                #{water_seg_pres},
+            </if>
+            <if test="water_collector_temp != null">
+                #{water_collector_temp},
+            </if>
+            <if test="water_collector_pres != null">
+                #{water_collector_pres},
+            </if>
+            <if test="frozen_pump_pres_in != null">
+                #{frozen_pump_pres_in},
+            </if>
+            <if test="frozen_pump_pres_out != null">
+                #{frozen_pump_pres_out},
+            </if>
+            <if test="frozen_temp_pres_in != null">
+                #{frozen_temp_pres_in},
+            </if>
+            <if test="frozen_temp_pres_out != null">
+                #{frozen_temp_pres_out},
+            </if>
+            <if test="cooling_pump_pres_in != null">
+                #{cooling_pump_pres_in},
+            </if>
+            <if test="cooling_pump_pres_out != null">
+                #{cooling_pump_pres_out},
+            </if>
+            <if test="cooling_temp_pres_in != null">
+                #{cooling_temp_pres_in},
+            </if>
+            <if test="cooling_temp_pres_out != null">
+                #{cooling_temp_pres_out},
+            </if>
+            <if test="mainframe_vol != null">
+                #{mainframe_vol},
+            </if>
+            <if test="mainframe_elec != null">
+                #{mainframe_elec},
+            </if>
+            <if test="air_conditioner_number != null">
+                #{air_conditioner_number},
+            </if>
+            <if test="mainframe_number != null">
+                #{mainframe_number},
+            </if>
+            <if test="date != null">
+                #{date},
+            </if>
+            <if test="hour != null">
+                #{hour},
+            </if>
+            <if test="unit_load != null">
+                #{unit_load},
+            </if>
+            <if test="out_temp != null">
+                #{out_temp},
+            </if>
+            <if test="deliver != null">
+                #{deliver},
+            </if>
+            <if test="receiver != null">
+                #{receiver},
+            </if>
+            <if test="charger != null">
+                #{charger},
+            </if>
+            <if test="remark != null">
+                #{remark},
+            </if>
+        </trim>
+
+        <!--<foreach collection="list" item="item" separator=",">
+            <trim prefix="values (" suffix=")" suffixOverrides=",">
+                <if test="eva_water_in_temp != null">
+                    #{item.eva_water_in_temp},
+                </if>
+                <if test="eva_water_out_temp != null">
+                    #{item.eva_water_out_temp},
+                </if>
+                <if test="eva_temp != null">
+                    #{item.eva_temp},
+                </if>
+                <if test="eva_pres != null">
+                    #{item.eva_pres},
+                </if>
+                <if test="cond_water_in_temp != null">
+                    #{item.cond_water_in_temp},
+                </if>
+                <if test="cond_water_out_temp != null">
+                    #{item.cond_water_out_temp},
+                </if>
+                <if test="cond_temp != null">
+                    #{item.cond_temp},
+                </if>
+                <if test="cond_pres != null">
+                    #{item.cond_pres},
+                </if>
+                <if test="lube_temp != null">
+                    #{item.lube_temp},
+                </if>
+                <if test="lube_pres != null">
+                    #{item.lube_pres},
+                </if>
+                <if test="lube_level != null">
+                    #{item.lube_level},
+                </if>
+                <if test="water_seg_temp != null">
+                    #{item.water_seg_temp},
+                </if>
+                <if test="water_seg_pres != null">
+                    #{item.water_seg_pres},
+                </if>
+                <if test="water_collector_temp != null">
+                    #{item.water_collector_temp},
+                </if>
+                <if test="water_collector_pres != null">
+                    #{item.water_collector_pres},
+                </if>
+                <if test="frozen_pump_pres_in != null">
+                    #{item.frozen_pump_pres_in},
+                </if>
+                <if test="frozen_pump_pres_out != null">
+                    #{item.frozen_pump_pres_out},
+                </if>
+                <if test="frozen_temp_pres_in != null">
+                    #{item.frozen_temp_pres_in},
+                </if>
+                <if test="frozen_temp_pres_out != null">
+                    #{item.frozen_temp_pres_out},
+                </if>
+                <if test="cooling_pump_pres_in != null">
+                    #{item.cooling_pump_pres_in},
+                </if>
+                <if test="cooling_pump_pres_out != null">
+                    #{item.cooling_pump_pres_out},
+                </if>
+                <if test="cooling_temp_pres_in != null">
+                    #{item.cooling_temp_pres_in},
+                </if>
+                <if test="cooling_temp_pres_out != null">
+                    #{item.cooling_temp_pres_out},
+                </if>
+                <if test="mainframe_vol != null">
+                    #{item.mainframe_vol},
+                </if>
+                <if test="mainframe_elec != null">
+                    #{item.mainframe_elec},
+                </if>
+                <if test="air_conditioner_number != null">
+                    #{item.air_conditioner_number},
+                </if>
+                <if test="mainframe_number != null">
+                    #{item.mainframe_number},
+                </if>
+                <if test="date != null">
+                    #{item.date},
+                </if>
+                <if test="hour != null">
+                    #{item.hour},
+                </if>
+                <if test="unit_load != null">
+                    #{item.unit_load},
+                </if>
+                <if test="out_temp != null">
+                    #{item.out_temp},
+                </if>
+                <if test="deliver != null">
+                    #{item.deliver},
+                </if>
+                <if test="receiver != null">
+                    #{item.receiver},
+                </if>
+                <if test="charger != null">
+                    #{item.charger},
+                </if>
+                <if test="remark != null">
+                    #{item.remark},
+                </if>
+            </trim>
+        </foreach>-->
+    </insert>
+
+    <select id="selectTemperatureByDate" parameterType="java.util.List" resultType="java.util.Map">
+        select `date`,`hour`,in_temp,out_temp from temperature_gaoxin
+        where `date` in
+        <foreach collection="dateList" index="index" item="dateList" open="(" separator="," close=")">
+            #{dateList}
+        </foreach>
+    </select>
+
+    <select id="selectRunningDataByDate" parameterType="java.util.List" resultType="java.util.Map">
+        select * from air_conditioner_running_gaoxin
+        where `date` in
+        <foreach collection="dateList" index="index" item="dateList" open="(" separator="," close=")">
+            #{dateList}
+        </foreach>
+
+    </select>
+
+    <insert id="insertPressureBatch" parameterType="java.util.List">
+        insert into pressure_gaoxin (`date`,`hour`,pressure)
+        values
+        <foreach collection="list" item="item" separator="," >
+            (#{item.date},#{item.hour,jdbcType=DOUBLE},#{item.pressure,jdbcType=DOUBLE})
+        </foreach>
+        <!--<foreach collection="list" item="item" index="index" separator=",">
+            (#{date,jdbcType=VARCHAR}, #{hour,jdbcType=DOUBLE},
+            #{pressure,jdbcType=DOUBLE})
+        </foreach>-->
+    </insert>
+
+    <select id="selectPressureByDate" parameterType="java.util.List" resultType="java.util.Map">
+        select * from pressure_gaoxin
+        where `date` in
+        <foreach collection="dateList" index="index" item="dateList" open="(" separator="," close=")">
+            #{dateList}
+        </foreach>
+    </select>
+
+    <insert id="insertWaterBatch" parameterType="java.util.List">
+        insert into water_gaoxin (`date`,`hour`,cumulant)
+        values
+        <foreach collection="list" item="item" index="index" separator=",">
+            (#{item.date,jdbcType=VARCHAR}, #{item.hour,jdbcType=DOUBLE},
+            #{item.cumulant,jdbcType=DOUBLE})
+        </foreach>
+        <!--<foreach collection="list" item="item" index="index" separator=",">
+            (#{item.date,jdbcType=VARCHAR}, #{item.hour,jdbcType=DOUBLE},
+            #{item.cumulant,jdbcType=DOUBLE})
+        </foreach>-->
+
+    </insert>
+
+    <select id="selectWaterByDate" parameterType="java.util.List" resultType="java.util.Map">
+        select * from water_gaoxin
+        where `date` in
+        <foreach collection="dateList" index="index" item="dateList" open="(" separator="," close=")">
+            #{dateList}
+        </foreach>
+    </select>
+
+    <insert id="insertWaterPumpRunningBatch" parameterType="java.util.List">
+        insert into water_pump_running_gaoxin (`date`,water_number,start_time,end_time,cumulant)
+        values
+        <!--<foreach collection="list" item="item" index="index" separator=",">
+            (#{date,jdbcType=VARCHAR}, #{water_number,jdbcType=VARCHAR},
+            #{start_time,jdbcType=DOUBLE}, #{end_time,jdbcType=DOUBLE}, #{cumulant,jdbcType=DOUBLE})
+        </foreach>-->
+        <foreach collection="list" item="item" index="index" separator=",">
+            (#{item.date,jdbcType=VARCHAR}, #{item.water_number,jdbcType=VARCHAR},
+            #{item.start_time,jdbcType=DOUBLE}, #{item.end_time,jdbcType=DOUBLE}, #{item.cumulant,jdbcType=DOUBLE})
+        </foreach>
+
+    </insert>
+
+    <select id="selectWaterPumpRunningByDate" parameterType="java.util.List" resultType="java.util.Map">
+        select * from water_pump_running_gaoxin
+        where `date` in
+        <foreach collection="dateList" index="index" item="dateList" open="(" separator="," close=")">
+            #{dateList}
+        </foreach>
+        <!--and water_number = #{water_number}-->
+    </select>
+</mapper>

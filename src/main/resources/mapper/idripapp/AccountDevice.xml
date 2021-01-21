@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.AccountDeviceDao">
+
+
+    <!-- 获取列表 -->
+    <select id="getDeviceList" resultType="java.util.HashMap">
+        SELECT d.id,d.name,d.last_maintenance_time lastMaintenanceTime FROM `account_device` d
+        WHERE d.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and d.name like CONCAT('%',#{name},'%')
+        </if>
+        ORDER BY d.last_maintenance_time DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+
+    <!-- 获取列表总数 -->
+    <select id="getDeviceListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)  FROM `account_device` d
+        WHERE d.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and d.name like CONCAT('%',#{name},'%')
+        </if>
+    </select>
+
+
+    <!-- 获取列表 -->
+    <select id="getAllDevice" resultType="java.util.HashMap">
+        SELECT d.id,d.name FROM `account_device` d
+        WHERE d.project_id=#{project_id}
+        ORDER BY d.id DESC
+    </select>
+
+    <!-- 状态 -->
+    <select id="getMaintenanceStatus" resultType="java.util.HashMap">
+     SELECT s.id,s.status_name statusName FROM `account_maintenance_status`  s
+    </select>
+
+    <!-- 设备信息 -->
+    <select id="getDevice" resultType="java.util.HashMap">
+     SELECT d.id,d.`name`,d.number,d.last_maintenance_time lastMaintenanceTime,d.last_maintainer lastMaintainer,c.cycle,d.last_status lastStatus
+     FROM `account_device` d
+     LEFT JOIN `account_device_cycle` c ON d.cycle_id=c.id
+     WHERE d.id=#{id}
+    </select>
+
+
+    <!-- 添加维保记录-->
+    <insert id="addMaintenance">
+        INSERT INTO `account_maintenance`
+        (`device_id`,`maintenance_time`,`maintainer`,`status`,`is_fault`,`remark`,
+        `last_maintenance_time`,`last_maintainer`,`initial_status`,`create_at`)
+        VALUES
+	    (#{deviceId},#{maintenanceTime},#{maintainer},#{status},#{isFault},#{remark},
+	    #{lastMaintenanceTime},#{lastMaintainer},#{status},SYSDATE())
+    </insert>
+
+    <!-- 修改-->
+    <update id="updateDeviceByMaintenance">
+        UPDATE `account_device`
+        <set>
+            <if test="maintenanceTime!= null">`last_maintenance_time`=#{maintenanceTime},</if>
+            <if test="maintainer!= null">`last_maintainer`=#{maintainer},</if>
+            <if test="status!= null">`last_status`=#{status}</if>
+        </set>
+        where
+        id=#{deviceId}
+    </update>
+
+
+
+    <!-- 设备信息 -->
+    <select id="getMaintenance" resultType="java.util.HashMap">
+        SELECT d.id deviceId,m.id maintenanceId,d.`name`,d.number,c.cycle,m.last_maintenance_time lastMaintenanceTime,m.last_maintainer lastMaintainer,m.maintenance_time maintenanceTime,
+        m.maintainer,m.status,s.status_name statusName,m.is_fault isFault,m.remark
+        FROM `account_device` d
+        LEFT JOIN `account_device_cycle` c ON d.cycle_id=c.id
+        LEFT JOIN
+        (
+        SELECT * FROM `account_maintenance` m  WHERE device_id=#{deviceId} AND is_delete=0  ORDER BY  m.maintenance_time DESC LIMIT 1
+        )m ON m.device_id=d.id
+        LEFT JOIN `account_maintenance_status` s ON m.status=s.id
+        WHERE d.id=#{deviceId}
+    </select>
+
+    <!-- 修改维保-->
+    <update id="updateMaintenance">
+        UPDATE `account_maintenance`
+        <set>
+            <if test="maintenanceTime!= null">`maintenance_time`=#{maintenanceTime},</if>
+            <if test="maintainer!= null">`maintainer`=#{maintainer},</if>
+            <if test="status!= null">`status`=#{status},</if>
+            <if test="isFault!= null">`is_fault`=#{isFault},</if>
+            <if test="remark!= null">`remark`=#{remark}</if>
+        </set>
+        WHERE
+        id=#{maintenanceId}
+    </update>
+
+</mapper>

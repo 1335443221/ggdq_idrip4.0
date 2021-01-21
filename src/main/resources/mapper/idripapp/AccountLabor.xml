@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.AccountLaborDao">
+
+    <!-- 获取劳保列表 -->
+    <select id="getLaborList" resultType="java.util.HashMap">
+        SELECT s.id,s.name,s.qr_code qrCode,s.amount,s.unit FROM `account_labor` s
+        WHERE s.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        ORDER BY s.update_time DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+
+    <!-- 获取劳保列表总数 -->
+    <select id="getLaborListCount" resultType="java.lang.Integer">
+       SELECT COUNT(*) FROM `account_labor` s
+       WHERE s.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+    </select>
+
+
+    <!-- 获取劳保列表 -->
+    <select id="getAllLabor" resultType="java.util.HashMap">
+        SELECT s.id,s.name,s.qr_code qrCode FROM `account_labor` s
+        WHERE s.project_id=#{project_id}
+    </select>
+
+    <!-- 获取劳保列表 -->
+    <select id="getLaborOutList" resultType="java.util.HashMap">
+       SELECT so.id,s.name,so.receive_time receiveTime,so.receive_amount receiveAmount
+       FROM `account_labor_out` so
+       INNER JOIN `account_labor` s ON so.material_id=s.id
+       WHERE s.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        ORDER BY so.receive_time DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+    <!-- 获取劳保列表 -->
+    <select id="getLaborOutListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `account_labor_out` so
+        INNER JOIN `account_labor` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+    </select>
+
+
+    <!-- 添加-->
+    <insert id="insertLaborOut">
+        INSERT INTO `account_labor_out`
+        (
+        `material_id`,`receive_user`,`receive_time`,`receive_amount`,`examine_user`,`remark`,`destroy_record`)
+        VALUES
+	    (#{partsId},#{receiveUser},#{receiveTime},#{receiveAmount},#{examineUser},#{remark},#{destroyRecord})
+    </insert>
+
+
+    <!-- 修改-->
+    <update id="updateLaborOut">
+        UPDATE `account_labor_out`
+        <set>
+            <if test="materialId!= null">`material_id`= #{materialId},</if>
+            <if test="receiveUser!= null">receive_user= #{receiveUser},</if>
+            <if test="receiveTime!= null">receive_time= #{receiveTime},</if>
+            <if test="receiveAmount!= null">receive_amount= #{receiveAmount},</if>
+            <if test="examineUser!= null">examine_user= #{examineUser},</if>
+            <if test="remark!= null">remark= #{remark},</if>
+            <if test="destroyRecord!= null">destroy_record= #{destroyRecord}</if>
+        </set>
+        where
+        id=#{id}
+    </update>
+
+
+    <!-- 删除-->
+    <delete id="deleteLaborOut">
+        DELETE  FROM  `account_labor_out`
+        where
+        id =#{id}
+    </delete>
+
+    <!-- 获取出库 -->
+    <select id="getLaborOutDetail" resultType="com.sl.idripapp.entity.AccountMaterialOut">
+        SELECT so.id,s.name,s.qr_code qrCode,so.receive_user receiveUser,so.receive_time receiveTime,so.destroy_record destroyRecord,so.receive_amount receiveAmount,so.examine_user examineUser
+        FROM `account_labor_out` so
+        INNER JOIN `account_labor` s ON so.material_id=s.id
+        WHERE so.id=#{id}
+    </select>
+
+
+    <!-- 获取入库列表 -->
+    <select id="getLaborInList" resultType="java.util.HashMap">
+        SELECT so.id,s.name,so.warehousing_time warehousingTime,so.warehousing_amount warehousingAmount FROM `account_labor_in` so
+        INNER JOIN `account_labor` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        ORDER BY so.warehousing_time DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+    <!-- 获取劳保列表 -->
+    <select id="getLaborInListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `account_labor_in` so
+        INNER JOIN `account_labor` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+    </select>
+
+    <!-- 添加-->
+    <insert id="insertLaborIn">
+        INSERT INTO `account_labor_in`
+        (
+        `material_id`,`warehousing_user`,`warehousing_time`,`warehousing_amount`,`examine_user`,`remark`)
+        VALUES
+	    (#{materialId},#{warehousingUser},#{warehousingTime},#{warehousingAmount},#{examineUser},#{remark})
+    </insert>
+
+    <!-- 修改-->
+    <update id="updateLaborIn">
+        UPDATE `account_labor_in`
+        <set>
+            <if test="materialId!= null">`material_id`= #{materialId},</if>
+            <if test="warehousingUser!= null">warehousing_user= #{warehousingUser},</if>
+            <if test="warehousingTime!= null">warehousing_time= #{warehousingTime},</if>
+            <if test="warehousingAmount!= null">warehousing_amount= #{warehousingAmount},</if>
+            <if test="examineUser!= null">examine_user= #{examineUser},</if>
+            <if test="remark!= null">remark= #{remark}</if>
+        </set>
+        where
+        id=#{id}
+    </update>
+
+    <!-- 删除-->
+    <delete id="deleteLaborIn">
+        DELETE  FROM  `account_labor_in`
+        where
+        id =#{id}
+    </delete>
+
+
+
+    <!-- 获取劳保数量 -->
+    <select id="getLaborAmount" resultType="java.lang.Integer">
+        SELECT s.amount FROM `account_labor` s WHERE id=#{id}
+    </select>
+
+    <!-- 获取劳保数量 -->
+    <select id="getLaborOutAmount" resultType="java.lang.Integer">
+        SELECT s.receive_amount FROM `account_labor_out` s WHERE id=#{id}
+    </select>
+
+    <!-- 获取劳保数量 -->
+    <select id="getLaborInAmount" resultType="java.lang.Integer">
+        SELECT s.warehousing_amount FROM `account_labor_in` s WHERE id=#{id}
+    </select>
+
+    <!-- 修改劳保-->
+    <update id="outOrInLabor">
+        UPDATE `account_labor`
+        <set>
+            <if test="amount!= null">amount=#{amount},</if>
+            update_time= SYSDATE()
+        </set>
+        where
+        id=#{id}
+    </update>
+
+    <!-- 获取入库 -->
+    <select id="getLaborInDetail" resultType="java.util.HashMap">
+        SELECT so.id,s.name,s.qr_code qrCode,so.warehousing_user warehousingUser,so.warehousing_time warehousingTime,so.warehousing_amount warehousingAmount,so.examine_user examineUser
+        FROM `account_labor_in` so
+        INNER JOIN `account_labor` s ON so.material_id=s.id
+        WHERE so.id=#{id}
+    </select>
+
+</mapper>

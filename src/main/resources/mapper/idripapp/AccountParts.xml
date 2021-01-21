@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.AccountPartsDao">
+
+    <!-- 获取配件、工具列表 -->
+    <select id="getPartsList" resultType="java.util.HashMap">
+        SELECT s.id,s.name,s.qr_code qrCode,s.amount,s.unit FROM `account_parts` s
+        WHERE s.project_id=#{project_id} AND s.`module`=#{module}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        ORDER BY s.update_time DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+
+    <!-- 获取配件、工具列表总数 -->
+    <select id="getPartsListCount" resultType="java.lang.Integer">
+       SELECT COUNT(*) FROM `account_parts` s
+       WHERE s.project_id=#{project_id} AND s.`module`=#{module}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+    </select>
+
+
+    <!-- 获取配件、工具列表 -->
+    <select id="getAllParts" resultType="java.util.HashMap">
+        SELECT s.id,s.name,s.qr_code qrCode FROM `account_parts` s
+        WHERE s.project_id=#{project_id} AND s.`module`=#{module}
+    </select>
+
+    <!-- 获取配件、工具列表 -->
+    <select id="getPartsOutList" resultType="java.util.HashMap">
+       SELECT so.id,s.name,so.receive_time receiveTime,so.receive_amount receiveAmount
+       FROM `account_parts_out` so
+       INNER JOIN `account_parts` s ON so.material_id=s.id
+       WHERE s.project_id=#{project_id} AND s.`module`=#{module}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        ORDER BY so.receive_time DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+    <!-- 获取配件、工具列表 -->
+    <select id="getPartsOutListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `account_parts_out` so
+        INNER JOIN `account_parts` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id} AND s.`module`=#{module}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+    </select>
+
+
+    <!-- 添加-->
+    <insert id="insertPartsOut">
+        INSERT INTO `account_parts_out`
+        (
+        `material_id`,`receive_user`,`receive_time`,`receive_amount`,`examine_user`,`remark`,`destroy_record`)
+        VALUES
+	    (#{materialId},#{receiveUser},#{receiveTime},#{receiveAmount},#{examineUser},#{remark},#{destroyRecord})
+    </insert>
+
+
+    <!-- 修改-->
+    <update id="updatePartsOut">
+        UPDATE `account_parts_out`
+        <set>
+            <if test="materialId!= null">`material_id`= #{materialId},</if>
+            <if test="receiveUser!= null">receive_user= #{receiveUser},</if>
+            <if test="receiveTime!= null">receive_time= #{receiveTime},</if>
+            <if test="receiveAmount!= null">receive_amount= #{receiveAmount},</if>
+            <if test="examineUser!= null">examine_user= #{examineUser},</if>
+            <if test="remark!= null">remark= #{remark},</if>
+            <if test="destroyRecord!= null">destroy_record= #{destroyRecord}</if>
+        </set>
+        where
+        id=#{id}
+    </update>
+
+
+    <!-- 删除-->
+    <delete id="deletePartsOut">
+        DELETE  FROM  `account_parts_out`
+        where
+        id =#{id}
+    </delete>
+
+    <!-- 获取出库 -->
+    <select id="getPartsOutDetail" resultType="com.sl.idripapp.entity.AccountMaterialOut">
+        SELECT so.id,s.name,s.qr_code qrCode,so.destroy_record destroyRecord,so.receive_user receiveUser,so.receive_time receiveTime,so.receive_amount receiveAmount,so.examine_user examineUser
+        FROM `account_parts_out` so
+        INNER JOIN `account_parts` s ON so.material_id=s.id
+        WHERE so.id=#{id}
+    </select>
+
+
+    <!-- 获取入库列表 -->
+    <select id="getPartsInList" resultType="java.util.HashMap">
+        SELECT so.id,s.name,so.warehousing_time warehousingTime,so.warehousing_amount warehousingAmount FROM `account_parts_in` so
+        INNER JOIN `account_parts` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id} AND s.`module`=#{module}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        ORDER BY so.warehousing_time DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+    <!-- 获取配件、工具列表 -->
+    <select id="getPartsInListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `account_parts_in` so
+        INNER JOIN `account_parts` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id} AND s.`module`=#{module}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+    </select>
+
+    <!-- 添加-->
+    <insert id="insertPartsIn">
+        INSERT INTO `account_parts_in`
+        (
+        `material_id`,`warehousing_user`,`warehousing_time`,`warehousing_amount`,`examine_user`,`remark`)
+        VALUES
+	    (#{materialId},#{warehousingUser},#{warehousingTime},#{warehousingAmount},#{examineUser},#{remark})
+    </insert>
+
+    <!-- 修改-->
+    <update id="updatePartsIn">
+        UPDATE `account_parts_in`
+        <set>
+            <if test="materialId!= null">`material_id`= #{materialId},</if>
+            <if test="warehousingUser!= null">warehousing_user= #{warehousingUser},</if>
+            <if test="warehousingTime!= null">warehousing_time= #{warehousingTime},</if>
+            <if test="warehousingAmount!= null">warehousing_amount= #{warehousingAmount},</if>
+            <if test="examineUser!= null">examine_user= #{examineUser},</if>
+            <if test="remark!= null">remark= #{remark}</if>
+        </set>
+        where
+        id=#{id}
+    </update>
+
+    <!-- 删除-->
+    <delete id="deletePartsIn">
+        DELETE  FROM  `account_parts_in`
+        where
+        id =#{id}
+    </delete>
+
+
+
+    <!-- 获取配件、工具数量 -->
+    <select id="getPartsAmount" resultType="java.lang.Integer">
+        SELECT s.amount FROM `account_parts` s WHERE id=#{id}
+    </select>
+
+    <!-- 获取配件、工具数量 -->
+    <select id="getPartsOutAmount" resultType="java.lang.Integer">
+        SELECT s.receive_amount FROM `account_parts_out` s WHERE id=#{id}
+    </select>
+
+    <!-- 获取配件、工具数量 -->
+    <select id="getPartsInAmount" resultType="java.lang.Integer">
+        SELECT s.warehousing_amount FROM `account_parts_in` s WHERE id=#{id}
+    </select>
+
+    <!-- 修改配件、工具-->
+    <update id="outOrInParts">
+        UPDATE `account_parts`
+        <set>
+            <if test="amount!= null">amount=#{amount},</if>
+            update_time= SYSDATE()
+        </set>
+        where
+        id=#{id}
+    </update>
+
+    <!-- 获取入库 -->
+    <select id="getPartsInDetail" resultType="java.util.HashMap">
+        SELECT so.id,s.name,s.qr_code qrCode,so.warehousing_user warehousingUser,so.warehousing_time warehousingTime,so.warehousing_amount warehousingAmount,so.examine_user examineUser
+        FROM `account_parts_in` so
+        INNER JOIN `account_parts` s ON so.material_id=s.id
+        WHERE so.id=#{id}
+    </select>
+
+</mapper>

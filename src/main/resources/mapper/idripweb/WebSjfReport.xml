@@ -1,0 +1,583 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.WebSjfReportDao">
+
+    <!-- 获取厂区楼宇树形列表 -->
+    <select id="getCategoryTree" resultType="java.util.HashMap">
+        SELECT
+            common_project_category_relation.id AS id,
+            common_project_category_relation.category_name AS text,
+            ( SELECT cpcr.parent_category_id FROM common_project_category_relation cpcr WHERE cpcr.id = common_project_category_relation.parent_category_id LIMIT 1 ) AS parent_id
+        FROM
+            common_project_category_relation
+            LEFT JOIN common_category_factory_relation ON common_category_factory_relation.category_id = common_project_category_relation.id
+        WHERE
+            common_project_category_relation.project_id = #{project_id}
+    </select>
+
+    <!-- 通过厂区楼宇树形列表获取所有分户信息 -->
+    <select id="getHousesByTree" resultType="java.util.HashMap">
+        SELECT
+            sjf_house.id AS house_id,
+            sjf_house.house_name
+        FROM
+            sjf_house
+        WHERE
+            building_id IN
+            <foreach collection="categoryIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+            AND sjf_house.is_check_in = 1
+            AND sjf_house.project_id = #{project_id}
+    </select>
+
+    <!-- 电费报表-》按日统计 -->
+    <select id="chargeReportOfDay" resultType="java.util.HashMap">
+        SELECT
+            date_format( STR_TO_DATE( date, '%Y-%m-%d' ), '%Y年%m月%d日' ) AS date,
+            (SELECT project_factory.factory_name FROM project_factory WHERE project_factory.id = sjf_house.factory_id LIMIT 1) AS factory_name,
+            common_project_category_relation.category_name AS category_name,
+            house_name,
+            house_id,
+            sum( CAST( abs( sjf_house_day_ep_fees.total_fees ) AS DECIMAL ( 18, 2 ) ) ) total_fees
+        FROM
+            sjf_house_day_ep_fees
+        LEFT JOIN sjf_house ON sjf_house_day_ep_fees.house_id = sjf_house.id
+        JOIN common_project_category_relation ON sjf_house.building_id = common_project_category_relation.id
+        WHERE
+            house_id IN
+            <foreach collection="houseIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+            AND STR_TO_DATE( date, '%Y-%m-%d' ) BETWEEN STR_TO_DATE( #{startDate}, '%Y-%m-%d' )
+            AND STR_TO_DATE( #{endDate}, '%Y-%m-%d' )
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            AND `sjf_house`.check_in_time &lt;= sjf_house_day_ep_fees.date
+        GROUP BY
+            date,
+            house_id
+    </select>
+
+    <!-- 电费报表-》按月统计 -->
+    <select id="chargeReportOfMonth" resultType="java.util.HashMap">
+        SELECT
+            date_format( STR_TO_DATE( date, '%Y-%m-%d' ), '%Y年%m月' ) AS date,
+            (SELECT project_factory.factory_name FROM project_factory WHERE project_factory.id = sjf_house.factory_id LIMIT 1) AS factory_name,
+            common_project_category_relation.category_name AS category_name,
+            house_name,
+            house_id,
+            sum( CAST( abs( sjf_house_day_ep_fees.total_fees ) AS DECIMAL ( 18, 2 ) ) ) total_fees
+        FROM
+            sjf_house_day_ep_fees
+        LEFT JOIN sjf_house ON sjf_house_day_ep_fees.house_id = sjf_house.id
+        JOIN common_project_category_relation ON sjf_house.building_id = common_project_category_relation.id
+        WHERE
+            house_id IN
+            <foreach collection="houseIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+            AND STR_TO_DATE( date, '%Y-%m' ) BETWEEN STR_TO_DATE( #{startDate}, '%Y-%m' )
+            AND STR_TO_DATE( #{endDate}, '%Y-%m' )
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            AND `sjf_house`.check_in_time &lt;= sjf_house_day_ep_fees.date
+        GROUP BY
+            STR_TO_DATE( date, '%Y-%m' ),
+            house_id
+    </select>
+
+    <!-- 电费报表-》按年统计 -->
+    <select id="chargeReportOfYear" resultType="java.util.HashMap">
+        SELECT
+            date_format( STR_TO_DATE( date, '%Y-%m-%d' ), '%Y年' ) AS date,
+            (SELECT project_factory.factory_name FROM project_factory WHERE project_factory.id = sjf_house.factory_id LIMIT 1) AS factory_name,
+            common_project_category_relation.category_name AS category_name,
+            house_name,
+            house_id,
+            sum( CAST( abs( sjf_house_day_ep_fees.total_fees ) AS DECIMAL ( 18, 2 ) ) ) total_fees
+        FROM
+            sjf_house_day_ep_fees
+        LEFT JOIN sjf_house ON sjf_house_day_ep_fees.house_id = sjf_house.id
+        JOIN common_project_category_relation ON sjf_house.building_id = common_project_category_relation.id
+        WHERE
+            house_id IN
+            <foreach collection="houseIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+            AND STR_TO_DATE( date, '%Y' ) BETWEEN STR_TO_DATE( #{startDate}, '%Y' )
+            AND STR_TO_DATE( #{endDate}, '%Y' )
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            AND `sjf_house`.check_in_time &lt;= sjf_house_day_ep_fees.date
+        GROUP BY
+            STR_TO_DATE( date, '%Y' ),
+            house_id
+    </select>
+
+    <!-- 电量报表-》按日统计 -->
+    <select id="powerReportOfDay" resultType="java.util.HashMap">
+        SELECT
+            date_format( STR_TO_DATE( date, '%Y-%m-%d' ), '%Y年%m月%d日' ) AS date,
+            (SELECT project_factory.factory_name FROM project_factory WHERE project_factory.id = sjf_house.factory_id LIMIT 1) AS factory_name,
+            common_project_category_relation.category_name AS category_name,
+            house_name,
+            house_id,
+            sum( CAST( abs( sjf_house_day_ep_fees.total_power ) AS DECIMAL ( 18, 2 ) ) ) total_power
+        FROM
+            sjf_house_day_ep_fees
+        LEFT JOIN sjf_house ON sjf_house_day_ep_fees.house_id = sjf_house.id
+        JOIN common_project_category_relation ON sjf_house.building_id = common_project_category_relation.id
+        WHERE
+            house_id IN
+            <foreach collection="houseIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+            AND STR_TO_DATE( date, '%Y-%m-%d' ) BETWEEN STR_TO_DATE( #{startDate}, '%Y-%m-%d' )
+            AND STR_TO_DATE( #{endDate}, '%Y-%m-%d' )
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            AND `sjf_house`.check_in_time &lt;= sjf_house_day_ep_fees.date
+        GROUP BY
+            date,
+            house_id
+    </select>
+
+    <!-- 电费报表-》按月统计 -->
+    <select id="powerReportOfMonth" resultType="java.util.HashMap">
+        SELECT
+            date_format( STR_TO_DATE( date, '%Y-%m-%d' ), '%Y年%m月' ) AS date,
+            (SELECT project_factory.factory_name FROM project_factory WHERE project_factory.id = sjf_house.factory_id LIMIT 1) AS factory_name,
+            common_project_category_relation.category_name AS category_name,
+            house_name,
+            house_id,
+            sum( CAST( abs( sjf_house_day_ep_fees.total_power ) AS DECIMAL ( 18, 2 ) ) ) total_power
+        FROM
+            sjf_house_day_ep_fees
+        LEFT JOIN sjf_house ON sjf_house_day_ep_fees.house_id = sjf_house.id
+        JOIN common_project_category_relation ON sjf_house.building_id = common_project_category_relation.id
+        WHERE
+            house_id IN
+            <foreach collection="houseIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+            AND STR_TO_DATE( date, '%Y-%m' ) BETWEEN STR_TO_DATE( #{startDate}, '%Y-%m' )
+            AND STR_TO_DATE( #{endDate}, '%Y-%m' )
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            AND `sjf_house`.check_in_time &lt;= sjf_house_day_ep_fees.date
+        GROUP BY
+            STR_TO_DATE( date, '%Y-%m' ),
+            house_id
+    </select>
+
+    <!-- 电费报表-》按年统计 -->
+    <select id="powerReportOfYear" resultType="java.util.HashMap">
+        SELECT
+            date_format( STR_TO_DATE( date, '%Y-%m-%d' ), '%Y年' ) AS date,
+            (SELECT project_factory.factory_name FROM project_factory WHERE project_factory.id = sjf_house.factory_id LIMIT 1) AS factory_name,
+            common_project_category_relation.category_name AS category_name,
+            house_name,
+            house_id,
+            sum( CAST( abs( sjf_house_day_ep_fees.total_power ) AS DECIMAL ( 18, 2 ) ) ) total_power
+        FROM
+            sjf_house_day_ep_fees
+        LEFT JOIN sjf_house ON sjf_house_day_ep_fees.house_id = sjf_house.id
+        JOIN common_project_category_relation ON sjf_house.building_id = common_project_category_relation.id
+        WHERE
+            house_id IN
+            <foreach collection="houseIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+            AND STR_TO_DATE( date, '%Y' ) BETWEEN STR_TO_DATE( #{startDate}, '%Y' )
+            AND STR_TO_DATE( #{endDate}, '%Y' )
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            AND `sjf_house`.check_in_time &lt;= sjf_house_day_ep_fees.date
+        GROUP BY
+            STR_TO_DATE( date, '%Y' ),
+            house_id
+    </select>
+
+    <!-- 电费报表-》分时 -->
+    <select id="powerReportOfHour" resultType="java.util.HashMap">
+        SELECT
+            ( SELECT project_factory.factory_name FROM project_factory WHERE project_factory.id = sjf_house.factory_id LIMIT 1 ) AS factory_name,
+            common_project_category_relation.category_name AS category_name,
+            house_name,
+            sjf_house.id AS house_id,
+            day_data_ep.power_per_hour
+        FROM
+            day_data_ep
+            JOIN sjf_house ON day_data_ep.meter_id = sjf_house.elec_meter_id
+            JOIN common_project_category_relation ON sjf_house.building_id = common_project_category_relation.id
+        WHERE
+            sjf_house.id IN
+            <foreach collection="houseIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+            AND date_format( day_data_ep.date, '%Y-%m-%d' ) = #{startDate}
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            AND `sjf_house`.check_in_time &lt;= day_data_ep.date
+        GROUP BY
+            house_id
+    </select>
+
+    <!-- 财务报表 -->
+    <select id="financeReport" resultType="java.util.HashMap">
+        SELECT
+            ( SELECT project_factory.factory_name FROM project_factory WHERE project_factory.id = sjf_house.factory_id LIMIT 1 ) AS factory_name,
+            common_project_category_relation.category_name AS category_name,
+            house_name,
+            sjf_house.id AS house_id,
+            ( SELECT sjf_house_type_now.charge_type FROM sjf_house_type_now WHERE sjf_house_type_now.id = sjf_house.type_id LIMIT 1) AS charge_type,
+            CAST(sum( CAST( abs( sjf_house_day_ep_fees.total_fees ) AS DECIMAL ( 18, 2 ) ) ) AS CHAR ) total_fees,
+            #{startDate} AS startDate,
+            #{endDate} AS endDate,
+            CAST(sum( CAST( abs( sjf_house_day_ep_fees.total_power ) AS DECIMAL ( 18, 2 ) ) ) AS CHAR ) total_power,
+            CAST(sum( CAST( abs( sjf_house_day_ep_fees.peak_ep ) AS DECIMAL ( 18, 2 ) ) ) AS CHAR ) peak_ep,
+            CAST(sum( CAST( abs( sjf_house_day_ep_fees.plain_ep ) AS DECIMAL ( 18, 2 ) ) ) AS CHAR ) plain_ep,
+            CAST(sum( CAST( abs( sjf_house_day_ep_fees.valley_ep ) AS DECIMAL ( 18, 2 ) ) ) AS CHAR ) valley_ep,
+            CAST(sum( CAST( abs( sjf_house_day_ep_fees.first_ep ) AS DECIMAL ( 18, 2 ) ) ) AS CHAR ) first_ep,
+            CAST(sum( CAST( abs( sjf_house_day_ep_fees.second_ep ) AS DECIMAL ( 18, 2 ) ) ) AS CHAR ) second_ep,
+            CAST(sum( CAST( abs( sjf_house_day_ep_fees.third_ep ) AS DECIMAL ( 18, 2 ) ) ) AS CHAR ) third_ep
+        FROM
+            sjf_house_day_ep_fees
+            JOIN sjf_house ON sjf_house_day_ep_fees.house_id = sjf_house.id
+            JOIN common_project_category_relation ON sjf_house.building_id = common_project_category_relation.id
+        WHERE
+            sjf_house.id IN
+            <foreach collection="houseIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+            AND sjf_house_day_ep_fees.date BETWEEN STR_TO_DATE( #{startDate}, '%Y-%m-%d' )
+            AND STR_TO_DATE( #{endDate}, '%Y-%m-%d' )
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            AND `sjf_house`.check_in_time &lt;= sjf_house_day_ep_fees.date
+        GROUP BY
+            house_id
+    </select>
+
+    <!-- 财务报表 -->
+    <select id="financeReportCount" resultType="java.lang.Integer">
+        SELECT
+            count(DISTINCT sjf_house.id )
+        FROM
+            sjf_house_day_ep_fees
+        JOIN sjf_house ON sjf_house_day_ep_fees.house_id = sjf_house.id
+        JOIN common_project_category_relation ON sjf_house.building_id = common_project_category_relation.id
+        WHERE
+            sjf_house.id IN
+            <foreach collection="houseIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            AND `sjf_house`.check_in_time &lt;= sjf_house_day_ep_fees.date
+    </select>
+
+    <!-- 根据分户获取电表和通讯机信息 -->
+    <select id="getMeterByHouse" resultType="java.util.HashMap">
+        SELECT
+            sjf_house.id AS house_id,
+            elec_meter.id AS meter_id,
+            elec_meter.device_name,
+            elec_meter.tg_id
+        FROM
+            sjf_house
+            LEFT JOIN elec_meter ON sjf_house.elec_meter_id = elec_meter.id
+        WHERE
+            sjf_house.id IN
+            <foreach collection="houseIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+    </select>
+
+    <!-- 首页根据选中园区获取缴费用户数量 -->
+    <select id="getHouseCount" resultType="java.lang.Integer">
+        SELECT
+            count( `sjf_house`.id )
+        FROM
+            `sjf_house`
+        WHERE
+            `sjf_house`.factory_id = #{factory_id}
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+    </select>
+
+    <!-- 首页根据选中园区和时间获取今年和去年缴费金额 -->
+    <select id="getTotalFees" resultType="java.util.HashMap">
+        SELECT
+            date_format( STR_TO_DATE( sjf_payment_record_house.create_at, '%Y-%m-%d' ), '%c' ) AS date,
+            sum( CAST( abs( sjf_payment_record_house.amount ) AS DECIMAL ( 18, 2 ) ) ) AS total_fees
+        FROM
+            sjf_house JOIN sjf_payment_record_house ON sjf_house.id = sjf_payment_record_house.house_id
+        WHERE
+            sjf_house.factory_id = #{factory_id}
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            AND STR_TO_DATE( sjf_payment_record_house.create_at, '%Y' ) IN (STR_TO_DATE( #{year}, '%Y' ))
+            GROUP BY STR_TO_DATE( sjf_payment_record_house.create_at, '%Y-%m' )
+    </select>
+
+    <!-- 首页根据选中园区获取用户电表信息 -->
+    <select id="getHouses" resultType="java.util.HashMap">
+        SELECT
+             sjf_house_type_now.parity_price,
+             sjf_house_type_now.peak_price,
+             sjf_house_type_now.plain_price,
+             sjf_house_type_now.valley_price,
+             sjf_house_type_now.second_price,
+             sjf_house_type_now.third_price,
+             sjf_house_type_now.charge_type,
+             sjf_house.cumulative_amount,
+             sjf_house.id AS house_id,
+             sjf_house.house_name,
+             sjf_house.check_in_time,
+             sjf_house.elec_meter_id,
+             elec_meter.tg_id,
+             elec_meter.device_name,
+             sjf_house.phone
+        FROM
+            sjf_house
+            LEFT JOIN elec_meter ON sjf_house.elec_meter_id = elec_meter.id
+            LEFT JOIN sjf_house_type_now ON sjf_house.type_id = sjf_house_type_now.id
+        WHERE
+            sjf_house.factory_id = #{factory_id} AND sjf_house.is_check_in=1 AND sjf_house.project_id = #{project_id}
+    </select>
+
+    <!-- 获取园区下所有分户-》分时 -->
+    <select id="getHousesByFactoryId" resultType="java.util.HashMap">
+        SELECT
+             sjf_house.id AS house_id,
+             sjf_house.house_name AS house_name
+        FROM
+            sjf_house
+            LEFT JOIN sjf_house_type_now ON sjf_house.type_id = sjf_house_type_now.id
+        WHERE
+            sjf_house.factory_id = #{factory_id}
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            AND sjf_house_type_now.charge_type IN (2,4)
+    </select>
+
+    <!-- 获取项目的峰平谷和阶梯设置 -->
+    <select id="getChargeFpgAndLadder" resultType="java.util.HashMap">
+        SELECT
+            sjf_charge_fpg_now.peak,
+            sjf_charge_fpg_now.plain,
+            sjf_charge_fpg_now.valley,
+            sjf_charge_ladder_now.first_ladder AS X,
+            sjf_charge_ladder_now.second_ladder AS Y
+        FROM
+            project_info LEFT JOIN sjf_charge_fpg_now
+            ON project_info.id = sjf_charge_fpg_now.project_id
+            LEFT JOIN sjf_charge_ladder_now ON project_info.id = sjf_charge_ladder_now.project_id
+        WHERE
+            project_info.id = #{project_id}
+    </select>
+
+    <!-- 获取每个阶梯用户数量 -->
+    <select id="getHousesOfLadder" resultType="java.util.HashMap">
+        SELECT
+            count( * ) AS count,
+            CASE
+            WHEN year_data_ep.power &lt; sjf_charge_ladder_now.first_ladder THEN '0' WHEN year_data_ep.power &gt;= sjf_charge_ladder_now.first_ladder
+            AND year_data_ep.power &lt; sjf_charge_ladder_now.second_ladder THEN
+            '1' ELSE '2'
+            END 'ladder'
+        FROM
+            `sjf_house`
+        JOIN year_data_ep ON sjf_house.elec_meter_id = year_data_ep.meter_id
+        JOIN sjf_charge_ladder_now ON sjf_charge_ladder_now.project_id = sjf_house.project_id
+        LEFT JOIN sjf_house_type_now ON sjf_house.type_id = sjf_house_type_now.id
+        WHERE
+            sjf_house.factory_id = #{factory_id}
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            AND STR_TO_DATE( year_data_ep.date, '%Y' ) IN ( STR_TO_DATE( #{year}, '%Y' ) )
+            AND sjf_house_type_now.charge_type IN (3,4)
+        GROUP BY
+            ladder
+    </select>
+
+    <!-- 首页根据选中分时用户获取峰平谷电费电度统计 -->
+    <select id="getFpgData" resultType="java.util.HashMap">
+        SELECT
+            sum( CAST( peak_ep AS DECIMAL ( 18, 2 ) ) ) peak_ep,
+            sum( CAST( plain_ep AS DECIMAL ( 18, 2 ) ) ) plain_ep,
+            sum( CAST( valley_ep AS DECIMAL ( 18, 2 ) ) ) valley_ep,
+            sum( CAST( peak_fees AS DECIMAL ( 18, 2 ) ) ) peak_fees,
+            sum( CAST( plain_fees AS DECIMAL ( 18, 2 ) ) ) plain_fees,
+            sum( CAST( valley_fees AS DECIMAL ( 18, 2 ) ) ) valley_fees
+        FROM
+            sjf_house_day_ep_fees
+        WHERE
+            STR_TO_DATE( sjf_house_day_ep_fees.date, '%Y' ) IN ( STR_TO_DATE( #{year}, '%Y' ) )
+            <if test="house_id != null and house_id !=''">
+                AND sjf_house_day_ep_fees.house_id = #{house_id}
+            </if>
+        GROUP BY
+            STR_TO_DATE( sjf_house_day_ep_fees.date, '%Y' ) LIMIT 1
+    </select>
+
+    <!-- 获取某个阶梯下的用户、用电量和缴费金额 -->
+    <select id="getHouseByLadder" resultType="java.util.HashMap">
+        SELECT
+            sjf_house.id,
+            sjf_house.house_name,
+            CAST( abs( year_data_ep.power ) AS DECIMAL ( 18, 2 ) ) total_power,
+            sum( CAST( abs( sjf_payment_record_house.amount ) AS DECIMAL ( 18, 2 ) ) ) amount
+        FROM
+            sjf_house
+            LEFT JOIN sjf_payment_record_house ON sjf_house.id = sjf_payment_record_house.house_id
+            LEFT JOIN sjf_house_type_now ON sjf_house.type_id = sjf_house_type_now.id
+            LEFT JOIN year_data_ep ON sjf_house.elec_meter_id = year_data_ep.meter_id
+            LEFT JOIN sjf_charge_ladder_now ON sjf_charge_ladder_now.project_id = sjf_house.project_id
+        WHERE
+            sjf_house.factory_id = #{factory_id}
+            AND STR_TO_DATE( year_data_ep.date, '%Y' ) IN ( STR_TO_DATE( #{year}, '%Y' ) )
+            AND sjf_house_type_now.charge_type IN (3,4)
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            <choose>
+                <when test="ladder == 1">
+                    AND year_data_ep.power &lt; sjf_charge_ladder_now.first_ladder
+                </when>
+                <when test="ladder == 2">
+                    AND year_data_ep.power &gt;= sjf_charge_ladder_now.first_ladder
+                    AND year_data_ep.power &lt; sjf_charge_ladder_now.second_ladder
+                </when>
+                <otherwise>
+                    AND year_data_ep.power &gt; sjf_charge_ladder_now.second_ladder
+                </otherwise>
+            </choose>
+        GROUP BY
+            sjf_house.id
+    </select>
+
+    <!-- 获取分户分组下的电费和用电量 -->
+    <select id="getPowerAndFeesOfHouse" resultType="java.util.HashMap">
+        SELECT
+            sjf_house.id,
+            sjf_house.house_name,
+            sum( CAST( abs( sjf_house_day_ep_fees.total_power ) AS DECIMAL ( 18, 2 ) ) ) power,
+            sum( CAST( abs( sjf_house_day_ep_fees.total_fees ) AS DECIMAL ( 18, 2 ) ) ) fees
+        FROM
+            sjf_house
+            LEFT JOIN sjf_house_day_ep_fees ON sjf_house.id = sjf_house_day_ep_fees.house_id
+        WHERE
+            sjf_house.factory_id = #{factory_id}
+            AND STR_TO_DATE( sjf_house_day_ep_fees.date, '%Y' ) IN ( STR_TO_DATE( #{year}, '%Y' ) )
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            AND `sjf_house`.check_in_time &lt;= sjf_house_day_ep_fees.date
+        GROUP BY
+            sjf_house.id
+        ORDER BY
+        <choose>
+            <when test="sort == 'desc'">
+                fees desc,power desc
+            </when>
+            <otherwise>
+                fees asc,power asc
+            </otherwise>
+        </choose>
+        LIMIT 10
+    </select>
+
+    <!-- 获取分户分组下的电费和用电量全部数据 -->
+    <select id="getPowerAndFeesOfHouseAll" resultType="java.lang.String">
+        SELECT
+            sjf_house.house_name
+        FROM
+            sjf_house
+        LEFT JOIN sjf_house_day_ep_fees ON sjf_house.id = sjf_house_day_ep_fees.house_id
+        WHERE
+            sjf_house.factory_id = #{factory_id}
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+            AND `sjf_house`.check_in_time &lt;= sjf_house_day_ep_fees.date
+        GROUP BY
+            sjf_house.id
+        LIMIT 10
+    </select>
+
+    <!-- 获取分户分组数据 -->
+    <select id="getAllHouses" resultType="java.util.HashMap">
+        SELECT
+            ( SELECT project_factory.factory_name FROM project_factory WHERE project_factory.id = sjf_house.factory_id LIMIT 1 ) AS factory_name,
+            common_project_category_relation.category_name AS category_name,
+            house_name,
+            sjf_house.id AS house_id
+        FROM
+            sjf_house
+            LEFT JOIN common_project_category_relation ON sjf_house.building_id = common_project_category_relation.id
+        WHERE
+            sjf_house.id IN
+            <foreach collection="houseIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+        GROUP BY
+            house_id
+    </select>
+
+    <!-- 财务报表获取所有分户分组数据 -->
+    <select id="getHousesOfFinance" resultType="java.util.HashMap">
+        SELECT
+            ( SELECT project_factory.factory_name FROM project_factory WHERE project_factory.id = sjf_house.factory_id LIMIT 1 ) AS factory_name,
+            common_project_category_relation.category_name AS category_name,
+            house_name,
+            sjf_house.id AS house_id,
+            #{startDate} AS startDate,
+            #{endDate} AS endDate,
+            ( SELECT sjf_house_type_now.charge_type FROM sjf_house_type_now WHERE sjf_house_type_now.id = sjf_house.type_id LIMIT 1 ) AS charge_type
+        FROM
+          sjf_house
+          JOIN common_project_category_relation ON sjf_house.building_id = common_project_category_relation.id
+        WHERE
+            sjf_house.id IN
+            <foreach collection="houseIds" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+            AND `sjf_house`.project_id = #{project_id}
+            AND `sjf_house`.is_check_in = 1
+        GROUP BY
+            house_id
+    </select>
+
+    <!-- 统计某年某园区下总用电量、电费总计,不加入is_check_in字段，因为按电表统计 -->
+    <select id="getStatisticsTotal" resultType="java.util.HashMap">
+        SELECT
+            concat(CAST(sum( CAST( abs( sjf_house_day_ep_fees.total_power ) AS DECIMAL ( 18, 2 ) ) ) AS DECIMAL ( 18, 2 )),'Kwh') total_power,
+            concat(CAST(sum( CAST( abs( sjf_house_day_ep_fees.total_fees ) AS DECIMAL ( 18, 2 ) ) )/10000 AS DECIMAL ( 18, 2 )),'万元') total_fees
+        FROM
+            sjf_house
+            LEFT JOIN sjf_house_day_ep_fees ON sjf_house.id = sjf_house_day_ep_fees.house_id
+        WHERE
+            sjf_house.factory_id = #{factory_id}
+            AND STR_TO_DATE( sjf_house_day_ep_fees.date, '%Y' ) IN ( STR_TO_DATE( #{year}, '%Y' ) )
+            AND `sjf_house`.project_id = #{project_id}
+            LIMIT 1
+    </select>
+
+    <!-- 统计某年某园区下缴费金额总计,不加入is_check_in字段，因为按电表统计 -->
+    <select id="getStatisticsAmount" resultType="java.util.HashMap">
+        SELECT
+            concat(CAST(sum( CAST( abs( sjf_payment_record_house.amount ) AS DECIMAL ( 18, 2 ) ) )/10000 AS DECIMAL ( 18, 2 )),'万元') amount
+        FROM
+            sjf_house
+            LEFT JOIN sjf_payment_record_house ON sjf_house.id = sjf_payment_record_house.house_id
+        WHERE
+            sjf_house.factory_id = #{factory_id}
+            AND STR_TO_DATE( sjf_payment_record_house.create_at, '%Y' ) IN ( STR_TO_DATE( #{year}, '%Y' ) )
+            AND `sjf_house`.project_id = #{project_id}
+            LIMIT 1
+    </select>
+
+</mapper>

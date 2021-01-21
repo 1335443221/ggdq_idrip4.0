@@ -1,0 +1,662 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.FireMonitorDao">
+	<!--   //====================APP=====================// -->
+	<select id="getFactory" resultType="java.util.HashMap">
+		SELECT fb.factory_id,pf.factory_name FROM `fire_building` fb
+		INNER JOIN `project_factory` pf ON fb.factory_id=pf.id
+		WHERE fb.project_id=#{project_id}
+		GROUP BY fb.factory_id
+	</select>
+
+	<select id="getBuildingByFactoryId" resultType="java.util.HashMap">
+		SELECT fb.id building_id,fb.building_name FROM `fire_building` fb
+		INNER JOIN `project_factory` pf ON fb.factory_id=pf.id
+		WHERE fb.factory_id=#{factory_id}
+	</select>
+
+	<select id="getFloorByBuildingId" resultType="java.util.HashMap">
+		SELECT f.id floor_id,f.floor FROM `fire_floor` f
+		WHERE f.building_id=#{building_id}
+	</select>
+
+	<select id="getDetector" resultType="java.util.HashMap">
+		SELECT f.id,f.desc,f.number,concat(b.building_name,":",ff.floor) location,concat(f.tg_id,':',f.device_name) as tagName,f.model,
+		(CASE
+		WHEN l.category_name is null THEN 0
+		ELSE 1 END) as status,
+		(CASE
+		WHEN l.category_name is null THEN '正常'
+		ELSE l.category_name END) as status_desc
+		FROM `fire_detector` f
+		LEFT JOIN `device_type_relation` dt on f.id=dt.device_id and dt.device_type_id=8
+		LEFT JOIN `fire_building` b on f.building_id=b.id
+		LEFT JOIN `fire_floor` ff on f.floor_id=ff.id
+		LEFT JOIN
+		(SELECT l.device_type_relation_id,ac.category_name  FROM `logs` l
+		LEFT JOIN `alerm_category_n1`ac on l.category=ac.id
+		WHERE l.alerm_type=6
+		and ac.id !=7
+		and ac.id !=8
+		and l.is_deal=0
+		GROUP BY l.device_type_relation_id
+		ORDER BY l.log_time DESC
+		)l
+		on dt.id=l.device_type_relation_id
+		WHERE 1=1
+		<if test="floor_id != null and floor_id !=''">
+			and f.floor_id=#{floor_id}
+		</if>
+		<if test="thread != null and thread !=''">
+			and f.thread=#{thread}
+		</if>
+		<if test="transformerroom_id != null and transformerroom_id !=''">
+			and f.transformerroom_id=#{transformerroom_id}
+		</if>
+	</select>
+
+	<select id="detectorList" resultType="java.util.HashMap">
+		SELECT f.id,f.desc,f.number,f.app_mode_id,dt.id device_id,concat(f.tg_id,':',f.device_name) as tagName
+		FROM `fire_detector` f
+		LEFT JOIN `device_type_relation` dt on f.id=dt.device_id and dt.device_type_id=8
+		WHERE f.project_id=#{project_id}
+		<if test="floor_id != null and floor_id !=''">
+			and f.floor_id=#{floor_id}
+		</if>
+		<if test="building_id != null and building_id !=''">
+			and f.building_id=#{building_id}
+		</if>
+		<if test="factory_id != null and factory_id !=''">
+			and f.factory_id=#{factory_id}
+		</if>
+	</select>
+
+
+	<select id="getTransformerroom" resultType="java.util.HashMap">
+		SELECT t.id transformerroom_id,t.name from `fire_detector` fd
+        LEFT JOIN `transformerroom` t on fd.transformerroom_id=t.id
+        WHERE fd.project_id=#{project_id}
+        GROUP BY fd.transformerroom_id
+	</select>
+
+	<select id="getThreadByTransformerroom" resultType="java.util.HashMap">
+		SELECT fd.thread,fd.transformerroom_id from `fire_detector` fd
+        WHERE fd.transformerroom_id=#{transformerroom_id}
+        GROUP BY fd.thread
+	</select>
+
+
+	<select id="getDetectorData" resultType="java.util.HashMap">
+		SELECT fd.project_id,fd.factory_id,fd.transformerroom_id,fd.id,fd.number,fd.desc,fd.model,
+		concat(b.building_name,":",ff.floor) location,
+		fd.thread,t.name transformerroom,concat(fd.tg_id,':',fd.device_name) as tagName,dt.id device_id,
+		(CASE
+		WHEN l.category_name is null THEN '正常'
+		ELSE l.category_name END) as state
+		FROM `fire_detector` fd
+		LEFT JOIN `transformerroom` t on fd.transformerroom_id=t.id
+		LEFT JOIN `fire_building` b on fd.building_id=b.id
+		LEFT JOIN `fire_floor` ff on fd.floor_id=ff.id
+		LEFT JOIN `device_type_relation` dt on fd.id=dt.device_id and dt.device_type_id=8
+		LEFT JOIN
+		(SELECT l.device_type_relation_id,ac.category_name  FROM `logs` l
+		LEFT JOIN `alerm_category_n1`ac on l.category=ac.id
+		WHERE l.alerm_type=6
+		and ac.id !=7
+		and ac.id !=8
+		and l.is_deal=0
+		GROUP BY l.device_type_relation_id
+		ORDER BY l.log_time DESC
+		)l
+		on dt.id=l.device_type_relation_id
+		WHERE 1=1
+        <if test="id != null and id !=''">
+            and fd.id=#{id}
+        </if>
+	</select>
+
+
+	<select id="getFactoryPosition" resultType="java.util.HashMap">
+		SELECT f.id factory_id,f.factory_name,f.longitude,f.latitude,f.build_num,f.build_acreage FROM `project_factory` f
+		WHERE 1=1
+        <if test="project_id != null and project_id !=''">
+            and f.project_id=#{project_id}
+        </if>
+	</select>
+
+	<select id="getBuildingPosition" resultType="java.util.HashMap">
+		SELECT f.id building_id,f.building_name,f.abscissa,f.ordinate FROM `fire_building` f
+		WHERE 1=1
+        <if test="project_id != null and project_id !=''">
+            and f.project_id=#{project_id}
+        </if>
+	</select>
+
+	<select id="getProjectInfo" resultType="java.util.HashMap">
+		SELECT f.id project_id,f.project_name,f.map_url FROM `project_info` f
+		WHERE 1=1
+        <if test="project_id != null and project_id !=''">
+            and f.id=#{project_id}
+        </if>
+	</select>
+
+
+
+	<!-- 根据设备获取电气火灾标签 -->
+	<select id="getAppFireTag" resultType="java.util.HashMap">
+		SELECT t.tag_name,t.desc,concat(e.desc,' : ',t.lucien)as loop_name,concat(e.device_name,'_',t.tag_name)as device_tag,e.id detector_id FROM `fire_tag` t
+		LEFT JOIN `fire_mode_tag_relation` mr
+		ON mr.tag_id=t.id
+		LEFT JOIN `fire_detector` e
+		ON e.app_mode_id=mr.mode_id
+		WHERE 1=1
+		<if test="id != null and id !=''">
+			and e.id=#{id}
+		</if>
+		<if test="list != null and list.size>=0">
+			and e.id in
+			<foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+				#{list.id}
+			</foreach>
+		</if>
+		<if test="is_redis =='1'">
+			GROUP by t.tag_name
+		</if>
+		<if test="is_redis =='0'">
+			GROUP by loop_name
+		</if>
+	</select>
+	<!-- 根据设备获取是否报警 -->
+	<select id="getAlermByDeviceId" resultType="java.util.HashMap">
+		SELECT l.tag,ac.category_name,concat(fd.device_name,'_',l.tag)as device_tag  FROM `logs` l
+		LEFT JOIN `alerm_category_n1`ac on l.category=ac.id
+		LEFT JOIN `device_type_relation` dt on l.device_type_relation_id=dt.id
+		LEFT JOIN `fire_detector` fd  on fd.id=dt.device_id and dt.device_type_id=8
+		WHERE l.alerm_type=6
+		and ac.id !=7
+		and ac.id !=8
+		and l.is_deal=0
+		<if test="device_id != null and device_id !=''">
+			and l.device_type_relation_id=#{device_id}
+		</if>
+		<if test="list != null and list.size>=0">
+			and l.device_type_relation_id in
+			<foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+				#{list.device_id}
+			</foreach>
+		</if>
+		GROUP BY device_tag
+		ORDER BY l.log_time DESC
+	</select>
+
+
+	<!-- 火灾报警列表 -->
+	<select id="fireAlermList" resultType="java.util.HashMap">
+		SELECT l.id,l.value,f.device_name,ac.category_name,l.is_deal,concat(b.building_name,":",ff.floor)as location,
+		f.number,DATE_FORMAT(l.log_time, '%Y-%m-%d %H:%i:%s') as log_time
+		FROM
+		(SELECT id,project_id,category,device_type_relation_id,is_deal,log_time,`value`,confirm_time  FROM `logs`
+		UNION ALL
+		SELECT id,project_id,category,device_type_relation_id,is_deal,log_time,`value`,confirm_time FROM `logs_history`
+		)l
+		INNER JOIN `alerm_category_n1` ac on l.category=ac.id
+		INNER JOIN `alerm_category_n2` n2 on ac.category2_id=n2.id
+		INNER JOIN `device_type_relation` dt on l.device_type_relation_id=dt.id
+		INNER JOIN `fire_detector` f on f.id=dt.device_id
+		LEFT JOIN `fire_building` b on f.building_id=b.id
+		LEFT JOIN `fire_floor` ff on f.floor_id=ff.id
+		WHERE dt.device_type_id=8
+		and l.project_id=#{project_id}
+		<if test="category_id != null and category_id !=''">
+			and n2.id=#{category_id}
+		</if>
+		<if test="factory_id != null and factory_id !=''">
+			and f.factory_id=#{factory_id}
+		</if>
+		<if test="building_id != null and building_id !=''">
+			and f.building_id=#{building_id}
+		</if>
+		<if test="floor_id != null and floor_id !=''">
+			and f.floor_id=#{floor_id}
+		</if>
+		and l.log_time  <![CDATA[>=]]>#{beginTime}
+		AND l.log_time  <![CDATA[<=]]>#{endTime}
+		<if test="is_deal ==0">
+			and l.is_deal=#{is_deal}
+			ORDER BY l.log_time DESC
+		</if>
+		<if test="is_deal ==1">
+			and l.is_deal=#{is_deal}
+			ORDER BY l.confirm_time DESC
+		</if>
+		LIMIT ${fromNum},${pageSize}
+	</select>
+
+	<!-- 火灾报警详情 -->
+	<select id="fireAlermDetail" resultType="java.util.HashMap">
+		SELECT l.id,f.device_name,ac.category_name,l.level,l.is_deal,l.confirm_time,l.operater,concat(b.building_name,":",ff.floor)as location,
+		f.number,DATE_FORMAT(l.log_time, '%Y-%m-%d %H:%i:%s') as log_time
+		FROM
+		(SELECT id,category,device_type_relation_id,`level`,is_deal,log_time,confirm_time,operater  FROM `logs`
+		UNION ALL
+		SELECT id,category,device_type_relation_id,`level`,is_deal,log_time,confirm_time,operater FROM `logs_history`
+		)l
+		INNER JOIN `alerm_category_n1` ac on l.category=ac.id
+		INNER JOIN `device_type_relation` dt on l.device_type_relation_id=dt.id
+		INNER JOIN `fire_detector` f on f.id=dt.device_id
+		LEFT JOIN `fire_building` b on f.building_id=b.id
+		LEFT JOIN `fire_floor` ff on f.floor_id=ff.id
+		WHERE dt.device_type_id=8
+		<if test="id != null and id !=''">
+			and l.id=#{id}
+		</if>
+	</select>
+
+
+	<!-- 火灾报警列表 -->
+	<select id="fireAlermListCount" resultType="java.lang.Integer">
+		SELECT count(*)
+		FROM
+		(SELECT category,project_id,device_type_relation_id,is_deal,log_time  FROM `logs`
+		UNION ALL
+		SELECT category,project_id,device_type_relation_id,is_deal,log_time FROM `logs_history`
+		)l
+		INNER JOIN `alerm_category_n1` ac on l.category=ac.id
+		INNER JOIN `alerm_category_n2` n2 on ac.category2_id=n2.id
+		INNER JOIN `device_type_relation` dt on l.device_type_relation_id=dt.id
+		INNER JOIN `fire_detector` f on f.id=dt.device_id
+		LEFT JOIN `fire_building` b on f.building_id=b.id
+		WHERE dt.device_type_id=8
+		and l.project_id=#{project_id}
+		<if test="is_deal != null and is_deal !=''">
+			and l.is_deal=#{is_deal}
+		</if>
+		<if test="category_id != null and category_id !=''">
+			and n2.id=#{category_id}
+		</if>
+		<if test="factory_id != null and factory_id !=''">
+			and f.factory_id=#{factory_id}
+		</if>
+		<if test="building_id != null and building_id !=''">
+			and f.building_id=#{building_id}
+		</if>
+		<if test="floor_id != null and floor_id !=''">
+			and f.floor_id=#{floor_id}
+		</if>
+        AND l.log_time  <![CDATA[>=]]>#{beginTime}
+		AND l.log_time  <![CDATA[<=]]>#{endTime}
+		ORDER BY l.log_time DESC
+	</select>
+
+
+	<!-- 报警处理内容 -->
+	<select id="queryAlermDealDetail" resultType="java.util.HashMap">
+		SELECT id,lid,mark_msg,repa_msg,mark_file FROM `alerm_mark_mesg`
+		WHERE lid=#{id}
+	</select>
+
+	<insert id="insertAlermDeal" parameterType="java.util.HashMap">
+		insert into `alerm_mark_mesg`
+		(lid,mark_msg,mark_file)
+		values
+		(	#{id},
+			#{msg},
+			#{fileUrl}
+		)
+	</insert>
+
+	<update id="updateAlermDeal" parameterType="java.util.HashMap">
+		update `alerm_mark_mesg`
+		<set>
+			<if test="msg != null">mark_msg=#{msg, jdbcType=VARCHAR},</if>
+			<if test="fileUrl != null">mark_file=#{fileUrl, jdbcType=VARCHAR}</if>
+		</set>
+		where lid=#{id}
+	</update>
+
+	<!-- 修改报警配置 -->
+	<update id="fireAlConfUpdate">
+		update `alerm_configer`
+		<set>
+			<if test="category_id!= null and category_id!=''">category= #{category_id},</if>
+			<if test="confLevel!= null  and confLevel!=''">config_level= #{confLevel},</if>
+			<choose>
+				<when test="confDesc!= null  and confDesc!=''">config_desc= #{confDesc},</when>
+				<otherwise>config_desc='',</otherwise>
+			</choose>
+			<if test="parent_cate_id!=null  and parent_cate_id!=''">config_type= #{parent_cate_id},</if>
+			<if test="is_effect !=null  and is_effect !=''">is_effect= #{is_effect},</if>
+			<choose>
+				<when test="hLevel1!= null  and hLevel1!=''">h_level1=#{hLevel1},</when>
+				<otherwise>h_level1='',</otherwise>
+			</choose>
+			<choose>
+				<when test="hLevel2!= null  and hLevel2!=''">h_level2=#{hLevel2},</when>
+				<otherwise>h_level2='',</otherwise>
+			</choose>
+			<choose>
+				<when test="lLevel1!= null  and lLevel1!=''">l_level1=#{lLevel1},</when>
+				<otherwise>l_level1='',</otherwise>
+			</choose>
+			<choose>
+				<when test="lLevel2!= null  and lLevel2!=''">l_level2=#{lLevel2},</when>
+				<otherwise>l_level2='',</otherwise>
+			</choose>
+			<!-- <if test="position_val!= null and position_val!=''">position_val=
+				#{position_val} </if> -->
+			<choose>
+				<when test="position_val!= null  and position_val!=''">position_val=#{position_val}</when>
+				<otherwise>position_val=null</otherwise>
+			</choose>
+		</set>
+		where device_type_relation_id=#{device_id} and tag=#{tag} and project_id=#{project_id}
+	</update>
+
+	<!-- 保存 -->
+	<insert id="fireAlConfSave">
+		insert into alerm_configer
+		(
+		project_id,
+		factory_id,
+		category,
+		config_level,
+		device_type_relation_id,
+		tg_id,
+		tag,
+		is_effect,
+		config_desc,
+		<if test="position_val != null and position_val != ''">position_val,</if>
+		alerm_type,
+		config_type,
+		h_level1,h_level2,l_level1,l_level2
+		)
+		values
+		(
+		#{project_id},
+		#{factory_id},
+		#{category_id},
+		#{confLevel},
+		#{device_id},
+		<choose>
+			<when test="tg_id != null and tg_id != ''">#{tg_id},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		#{tag},
+		<choose>
+			<when test="is_effect != null and is_effect != ''">#{is_effect},</when>
+			<otherwise>1,</otherwise>
+		</choose>
+		<choose>
+			<when test="config_desc != null and config_desc != ''">#{config_desc},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<if test="position_val != null and position_val != ''">#{position_val},</if>
+		<choose>
+			<when test="alerm_type_id != null and alerm_type_id != ''">#{alerm_type_id},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="parent_cate_id != null and parent_cate_id != ''">#{parent_cate_id},</when>
+			<otherwise>null,</otherwise>
+		</choose>
+		<choose>
+			<when test="hLevel1 != null and hLevel1 != ''">#{hLevel1},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="hLevel2 != null and hLevel2 != ''">#{hLevel2},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="lLevel1 != null and lLevel1 != ''">#{lLevel1},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="lLevel2 != null and lLevel2 != ''">#{lLevel2}</when>
+			<otherwise>''</otherwise>
+		</choose>
+		)
+	</insert>
+
+	<!-- 查询是否存在 -->
+	<select id="selectIsExistConfig" resultType="java.util.HashMap">
+		SELECT * FROM alerm_configer c
+		where device_type_relation_id=#{device_id} and tag=#{tag} and project_id=#{project_id}
+	</select>
+
+	<!-- 根据设备获取电气火灾标签 -->
+	<select id="getFireTagByDetectorId" resultType="java.util.HashMap">
+		SELECT t.id,t.tag_name tag,t.desc FROM `fire_tag` t
+		JOIN `fire_mode_tag_relation` mr
+		ON mr.tag_id=t.id
+		JOIN `fire_detector` e
+		ON e.app_mode_id=mr.mode_id
+		WHERE e.id=#{id}
+	</select>
+	<!-- 报警配置信息 -->
+	<select id="fireAlConfData" resultType="java.util.HashMap">
+		SELECT ac.category as category_id,n2.category_name,ac.config_level as confLevel,
+		ac.is_effect,ac.h_level1,ac.h_level2,ac.l_level1,ac.l_level2,ac.position_val
+		from `alerm_configer` ac
+		LEFT JOIN `alerm_category_n2` n2 on ac.category=n2.id
+		where ac.project_id=#{project_id}
+		<if test="device_id != null and device_id !=''">
+			and ac.device_type_relation_id=#{device_id}
+		</if>
+		<if test="tag != null and tag !=''">
+			and ac.tag=#{tag}
+		</if>
+	</select>
+
+	<!-- 巡检列表 -->
+	<select id="patrolList" resultType="java.util.HashMap">
+		SELECT l.id patrol_log_id,l.patrol_id,p.patrol_name,l.patrol_date,p.fire_number,p.patrol_type,l.state FROM `fire_patrol_log` l
+        INNER JOIN `fire_patrol` p on l.patrol_id=p.id
+        INNER JOIN `fire_detector` f on p.fire_number=f.number
+        WHERE p.project_id=#{project_id}
+        <if test="patrol_name != null and patrol_name !=''">
+            and p.patrol_name like CONCAT('%',#{patrol_name},'%')
+        </if>
+        <if test="factory_id != null and factory_id !=''">
+            and f.factory_id=#{factory_id}
+        </if>
+        <if test="building_id != null and building_id !=''">
+            and f.building_id=#{building_id}
+        </if>
+        <if test="floor_id != null and floor_id !=''">
+            and f.floor_id=#{floor_id}
+        </if>
+        <if test="state ==0">
+            and l.state=0
+            ORDER BY l.patrol_date DESC,p.create_at DESC
+        </if>
+        <if test="state ==1">
+            and l.state>0
+			ORDER BY l.create_at DESC
+        </if>
+        LIMIT ${fromNum},${pageSize}
+	</select>
+
+	<!-- 巡检列表 -->
+	<select id="allPatrolList" resultType="java.util.HashMap">
+		SELECT p.id patrol_id,p.patrol_type,p.begin_time,p.end_time FROM `fire_patrol` p
+	</select>
+
+	<!-- 巡检列表条数  -->
+	<select id="patrolListCount" resultType="java.lang.Integer">
+        SELECT count(*) FROM `fire_patrol_log` l
+        INNER JOIN `fire_patrol` p on l.patrol_id=p.id
+        INNER JOIN `fire_detector` f on p.fire_number=f.number
+        WHERE p.project_id=#{project_id}
+        <if test="patrol_name != null and patrol_name !=''">
+            and p.patrol_name like CONCAT('%',#{patrol_name},'%')
+        </if>
+        <if test="factory_id != null and factory_id !=''">
+            and f.factory_id=#{factory_id}
+        </if>
+        <if test="building_id != null and building_id !=''">
+            and f.building_id=#{building_id}
+        </if>
+        <if test="floor_id != null and floor_id !=''">
+            and f.floor_id=#{floor_id}
+        </if>
+        <if test="state =='0'">
+            and l.state=0
+        </if>
+        <if test="state =='1'">
+            and l.state>0
+        </if>
+	</select>
+	<!-- 巡检详情  -->
+	<select id="patrolDetail" resultType="java.util.HashMap">
+        SELECT l.id patrol_log_id,l.patrol_id,p.patrol_name,l.patrol_date,p.patrol_type,l.state,p.fire_number,
+        concat(b.building_name,":",ff.floor) location,
+        p.patrol_content,
+        u.name create_by,
+        l.patrol_file
+        FROM `fire_patrol_log` l
+        INNER JOIN `fire_patrol` p on l.patrol_id=p.id
+        INNER JOIN `fire_detector` f on p.fire_number=f.number
+        LEFT JOIN `fire_building` b on f.building_id=b.id
+        LEFT JOIN `fire_floor` ff on f.floor_id=ff.id
+        LEFT JOIN `app_register_user` u on l.create_by=u.id
+        WHERE l.id=#{patrol_log_id}
+	</select>
+
+    <select id="malfunctionList" resultType="java.util.HashMap">
+         SELECT m.id malfunction_id,p.patrol_name,m.malfunction_type,m.create_at,m.fire_number,m.is_deal from `fire_malfunction` m
+		 INNER JOIN `fire_patrol_log` l on m.patrol_log_id=l.id
+		 INNER JOIN `fire_patrol` p on l.patrol_id=p.id
+		 WHERE p.project_id=#{project_id}
+		<if test="patrol_log_id != null and patrol_log_id !=''">
+			and m.patrol_log_id=#{patrol_log_id}
+		</if>
+		<if test="is_deal != null and is_deal !=''">
+			and m.is_deal=#{is_deal}
+		</if>
+		<if test="malfunction_type != null and malfunction_type !=''">
+			and m.malfunction_type like CONCAT('%',#{malfunction_type},'%')
+		</if>
+		ORDER BY m.create_at DESC
+		LIMIT ${fromNum},${pageSize}
+	</select>
+
+    <select id="malfunctionListCount" resultType="java.lang.Integer">
+         SELECT count(*) from `fire_malfunction` m
+		 INNER JOIN `fire_patrol_log` l on m.patrol_log_id=l.id
+		 INNER JOIN `fire_patrol` p on l.patrol_id=p.id
+		WHERE 1=1
+		<if test="patrol_log_id != null and patrol_log_id !=''">
+			and m.patrol_log_id=#{patrol_log_id}
+		</if>
+		<if test="is_deal != null and is_deal !=''">
+			and m.is_deal=#{is_deal}
+		</if>
+		<if test="malfunction_type != null and malfunction_type !=''">
+			and m.malfunction_type like CONCAT('%',#{malfunction_type},'%')
+		</if>
+	</select>
+
+    <select id="getModelUrl" resultType="java.lang.String">
+         SELECT model_url from
+		<choose>
+			<when test="floor_id !=null and floor_id != ''">
+				`fire_floor`
+				where id=#{floor_id}
+			</when>
+			<when test="building_id !=null and building_id != ''">
+				`fire_building`
+				where id=#{building_id}
+				and project_id=#{project_id}
+			</when>
+			<otherwise>
+				`project_factory`
+				where id=#{factory_id}
+				and project_id=#{project_id}
+			</otherwise>
+		</choose>
+	</select>
+
+    <select id="malfunctionDetail" resultType="java.util.HashMap">
+		SELECT m.id malfunction_id,m.fire_location,m.fire_number,m.malfunction_type,m.malfunction_content,p.patrol_name as source,
+		m.create_at,m.malfunction_file,m.is_deal,m.deal_msg,m.deal_time,m.deal_user,m.deal_file
+		from `fire_malfunction` m
+		INNER JOIN `fire_patrol_log` l on m.patrol_log_id=l.id
+		INNER JOIN `fire_patrol` p on l.patrol_id=p.id
+		<if test="malfunction_id != null and malfunction_id !=''">
+			and m.id =#{malfunction_id}
+		</if>
+	</select>
+
+
+	<insert id="addPatrol" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="patrol_id">
+		insert into `fire_patrol`
+		(project_id,patrol_name,fire_number,begin_time,end_time,patrol_type,patrol_content,create_at,is_implement)
+		values
+		(	#{project_id},
+			#{patrol_name},
+			#{fire_number},
+			#{begin_time},
+			#{end_time},
+			#{patrol_type},
+			#{patrol_content},
+			SYSDATE(),
+			#{is_implement}
+		)
+	</insert>
+	<insert id="addAllPatrolLog" parameterType="java.util.HashMap">
+		insert into `fire_patrol_log`
+		(patrol_id,patrol_date)
+		values
+		<foreach collection ="list" item="map" index= "index" separator =",">
+			(
+			 #{map.patrol_id},
+			 #{map.patrol_date}
+		   )
+		</foreach >
+	</insert>
+
+
+
+
+
+	<insert id="addMalfunction" parameterType="java.util.HashMap">
+		insert into `fire_malfunction`
+		(patrol_log_id,fire_number,fire_location,malfunction_type,malfunction_content,malfunction_file,is_deal,create_at,create_by)
+		values
+		(	#{patrol_log_id},
+			#{fire_number},
+			#{fire_location},
+			#{malfunction_type},
+			#{malfunction_content},
+			#{malfunction_file},
+			#{is_deal},
+			SYSDATE(),
+			#{create_by}
+		)
+	</insert>
+
+	<update id="malfunctionDeal" parameterType="java.util.HashMap">
+		update `fire_malfunction`
+		<set>
+			<if test="is_deal != null">is_deal=#{is_deal,jdbcType=INTEGER},</if>
+			<if test="deal_msg != null">deal_msg=#{deal_msg,jdbcType=VARCHAR},</if>
+			deal_time=SYSDATE(),
+			<if test="deal_user != null">deal_user=#{deal_user,jdbcType=VARCHAR},</if>
+			<if test="deal_file != null">deal_file=#{deal_file,jdbcType=VARCHAR}</if>
+		</set>
+		where id=#{malfunction_id}
+	</update>
+
+	<update id="patrolComplete" parameterType="java.util.HashMap">
+		update `fire_patrol_log`
+		<set>
+			<if test="state != null">state=#{state,jdbcType=INTEGER},</if>
+			<if test="create_by != null">create_by=#{create_by,jdbcType=INTEGER},</if>
+			create_at=SYSDATE(),
+			<if test="patrol_file != null">patrol_file=#{patrol_file,jdbcType=VARCHAR}</if>
+		</set>
+		where id=#{patrol_log_id}
+	</update>
+</mapper>

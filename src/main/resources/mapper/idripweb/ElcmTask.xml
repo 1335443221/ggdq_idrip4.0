@@ -1,0 +1,433 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.ElcmTaskDao">
+
+    <!-- 任务状态 -->
+    <select id="getTaskStatus" resultType="java.util.HashMap">
+      SELECT 0 as `status`,'全部' as status_name
+      UNION ALL
+      SELECT `status`,status_name FROM `elcm_device_task_status`
+      WHERE 1=1
+        <if test="is_agree != null and is_agree != ''">
+            and is_agree = #{is_agree}
+        </if>
+    </select>
+
+
+    <!-- 任务类型 -->
+    <select id="getTaskType" resultType="java.util.HashMap">
+        SELECT maintenance_type_id,maintenance_type_name FROM `elcm_maintenance_type` WHERE maintenance_type_id in(1,2)
+    </select>
+
+
+    <!-- 新增任务-->
+    <insert id="addTask" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="task_id">
+        insert into `elcm_device_task`
+        (task_number,maintenance_type_id,project_id,task_name,begin_time,end_time,is_repeat,status,is_start,create_time,create_user)
+        values
+        (
+        #{task_number},
+        #{maintenance_type_id},
+        #{project_id},
+        #{task_name},
+        #{begin_time},
+        #{end_time},
+        #{is_repeat},
+        #{status},
+        #{is_start},
+        SYSDATE(),
+        #{user_id}
+        )
+    </insert>
+    <!-- 新增任务关系-->
+    <insert id="addTaskRelation" parameterType="java.util.HashMap">
+        insert into `elcm_device_task_relation`
+        (task_id,device_id,maintain_id)
+        values
+        (
+        #{task_id},
+        #{device_id},
+        #{maintain_id}
+        )
+    </insert>
+
+    <!-- 删除任务关系-->
+    <delete id="deleteTaskRelation">
+        delete from `elcm_device_task_relation` where task_id=#{task_id};
+    </delete>
+
+
+
+    <!-- 任务列表 -->
+    <select id="getTaskList" resultType="java.util.HashMap">
+       SELECT t.id task_id,t.project_id,t.task_number,t.maintenance_type_id,mt.maintenance_type_name,t.task_name,
+        DATE_FORMAT(t.begin_time, '%Y-%m-%d') as begin_time,
+        DATE_FORMAT(t.end_time, '%Y-%m-%d') as end_time,
+        t.`status`,s.status_name,t.is_start
+       FROM `elcm_device_task` t
+       INNER JOIN `elcm_maintenance_type` mt on mt.maintenance_type_id=t.maintenance_type_id
+       INNER JOIN `elcm_device_task_status` s on s.`status`=t.`status`
+       WHERE  t.project_id=#{project_id}
+        <if test="status != null and status != '' and status != 0">
+            and t.status = #{status}
+        </if>
+        <if test="maintenance_type_id != null and maintenance_type_id != ''">
+            and t.maintenance_type_id = #{maintenance_type_id}
+        </if>
+        <if test="task_number != null and task_number != ''">
+            and t.task_number like CONCAT('%',#{task_number},'%')
+        </if>
+        <if test="is_agree != null and is_agree != ''">
+            and s.is_agree = #{is_agree}
+        </if>
+        ORDER BY t.id DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+
+    <!-- 任务列表 -->
+    <select id="getTaskListCount" resultType="java.lang.Integer">
+       SELECT COUNT(*)
+       FROM `elcm_device_task` t
+       INNER JOIN `elcm_maintenance_type` mt on mt.maintenance_type_id=t.maintenance_type_id
+       INNER JOIN `elcm_device_task_status` s on s.`status`=t.`status`
+        WHERE  t.project_id=#{project_id}
+        <if test="status != null and status != '' and status != 0">
+            and t.status = #{status}
+        </if>
+        <if test="maintenance_type_id != null and maintenance_type_id != ''">
+            and t.maintenance_type_id = #{maintenance_type_id}
+        </if>
+        <if test="task_number != null and task_number != ''">
+            and t.task_number like CONCAT('%',#{task_number},'%')
+        </if>
+        <if test="is_agree != null and is_agree != ''">
+            and s.is_agree = #{is_agree}
+        </if>
+    </select>
+
+
+    <!-- 任务 -->
+    <select id="getTask" resultType="java.util.Map">
+       SELECT t.id task_id,t.project_id,t.task_number,t.maintenance_type_id,mt.maintenance_type_name,t.task_name,
+       DATE_FORMAT(t.begin_time, '%Y-%m-%d') as begin_time,
+       DATE_FORMAT(t.end_time, '%Y-%m-%d') as end_time,
+       DATE_FORMAT(t.actual_end_time, '%Y-%m-%d') as actual_end_time,
+       t.is_repeat,t.status,s.status_name,t.is_start
+       FROM `elcm_device_task` t
+       INNER JOIN `elcm_maintenance_type` mt on mt.maintenance_type_id=t.maintenance_type_id
+       INNER JOIN `elcm_device_task_status` s on s.`status`=t.`status`
+        WHERE  t.id=#{task_id}
+    </select>
+
+
+    <!-- 任务 -->
+    <select id="getTaskRelation" resultType="java.util.Map">
+       SELECT t.task_id,t.device_id,t.maintain_id,d.device_name,d.device_number,d.install_position,d.device_model,
+		m.maintain_parts,m.operation_content,m.operation_steps,m.maintain_intervals,
+		m.maintain_intervals_unit,m.task_work,DATE_FORMAT(m.last_maintenance_time, '%Y-%m-%d %H:%i:%s') as last_maintenance_time
+        FROM `elcm_device_task_relation` t
+	    INNER JOIN `elcm_device_info` d on t.device_id=d.id
+        INNER JOIN `elcm_maintain` m on t.maintain_id=m.id
+       WHERE  t.task_id=#{task_id}
+    </select>
+
+
+    <!-- 修改 -->
+    <update id="updateTask" parameterType="java.util.HashMap">
+        update `elcm_device_task`
+        <set>
+            <if test="status != null">status=#{status},</if>
+            <if test="is_start != null">is_start=#{is_start},</if>
+            <if test="maintenance_type_id != null">maintenance_type_id=#{maintenance_type_id},</if>
+            <if test="task_name != null">task_name=#{task_name},</if>
+            <if test="begin_time != null">begin_time=#{begin_time},</if>
+            <if test="end_time != null">end_time=#{end_time},</if>
+            <if test="is_repeat != null">is_repeat=#{is_repeat}</if>
+        </set>
+        WHERE id=#{task_id}
+    </update>
+
+    <!-- 删除任务-->
+    <delete id="deleteTask">
+        delete from `elcm_device_task` where id=#{task_id};
+    </delete>
+
+    <!-- 设备/部件 -->
+    <select id="getDeviceMaintainRelation" resultType="java.util.Map">
+        SELECT d.id device_id,m.id maintain_id,d.device_name,d.device_number,d.install_position,d.device_model,
+        m.maintain_parts,m.operation_content,m.operation_steps,m.maintain_intervals,
+        m.maintain_intervals_unit,m.task_work,DATE_FORMAT(m.last_maintenance_time, '%Y-%m-%d %H:%i:%s') as last_maintenance_time
+        FROM `elcm_maintain` m
+        RIGHT JOIN `elcm_device_info` d on m.device_id=d.id
+        WHERE d.project_id=#{project_id}
+        <if test="list != null and list.size>=0">
+            and d.id in
+            <foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+                #{list}
+            </foreach>
+        </if>
+    </select>
+
+    <!-- 获取所有数据-->
+    <select id="getElcmTaskRelation" resultType="java.util.Map">
+           SELECT r.maintain_id,t.begin_time,t.end_time,m.maintain_parts,d.device_name
+            FROM `elcm_device_task_relation` r
+            INNER JOIN `elcm_device_task` t on r.task_id=t.id
+            INNER JOIN `elcm_maintain` m on r.maintain_id=m.id
+            INNER JOIN `elcm_device_info` d on r.device_id=d.id
+            WHERE t.project_id=#{project_id} AND t.status in (1,4,5)
+    </select>
+
+    <!-- ================工单===================-->
+
+    <!-- 工工单状态 -->
+    <select id="getRecordStatus" resultType="java.util.Map">
+       SELECT 0 as `status`,'全部' as status_name
+        UNION ALL
+        SELECT status,status_name
+        FROM `elcm_device_task_record_status`
+        WHERE 1=1
+        <if test="is_agree != null and is_agree != ''">
+            and is_agree = #{is_agree}
+        </if>
+    </select>
+
+    <!-- 工工单提醒状态 -->
+    <select id="getRemindList" resultType="java.util.Map">
+        SELECT id remind_id,CONCAT(remind_time,'天前') as remind_time
+        FROM `elcm_device_task_record_remind`
+    </select>
+
+    <!-- 新增工单提醒-->
+    <insert id="addRemind" parameterType="java.util.HashMap">
+        insert into `elcm_device_task`
+        (remind_time)
+        values
+        (
+        #{remind_time}
+        )
+    </insert>
+
+
+
+
+
+
+    <!-- 工单列表-->
+    <select id="getRecordList" resultType="java.util.HashMap">
+        SELECT r.id record_id,r.record_number,t.task_name,
+        dt.device_type_id,dt.device_type_name,d.device_number,d.device_name,d.install_position,
+        m.maintain_parts,
+        DATE_FORMAT(r.plan_start_time, '%Y-%m-%d') as plan_start_time,
+        DATE_FORMAT(r.complete_time, '%Y-%m-%d %H:%i:%s') as complete_time,
+        DATE_FORMAT(r.remind_time, '%Y-%m-%d') as remind_time,
+        r.user_id,u.`name` user_name,r.`status`,rs.status_name,
+        CONCAT(m.maintain_intervals,m.maintain_intervals_unit) as maintain_intervals
+        FROM `elcm_device_task_record` r
+        LEFT JOIN  `user` u on r.user_id=u.id
+        INNER JOIN  `elcm_device_task_record_status` rs on r.`status`=rs.id
+
+        INNER JOIN  `elcm_device_task_relation` tr on r.relation_id=tr.id
+        INNER JOIN  `elcm_device_task` t on tr.task_id=t.id
+        INNER JOIN  `elcm_device_info` d on tr.device_id=d.id
+        INNER JOIN  `elcm_device_type` dt on d.device_type_id=dt.device_type_id
+        INNER JOIN  `elcm_maintain` m on tr.maintain_id=m.id
+        WHERE d.project_id=#{project_id}
+        <if test="status != null and status != ''and status != 0">
+            and r.`status` = #{status}
+        </if>
+        <if test="record_number != null and record_number != ''">
+            and r.record_number like CONCAT('%',#{record_number},'%')
+        </if>
+        <if test="name != null and name != ''">
+            and u.`name` like CONCAT('%',#{name},'%')
+        </if>
+        <if test="device_number != null and device_number != ''">
+            and d.device_number like CONCAT('%',#{device_number},'%')
+        </if>
+        <if test="device_name != null and device_name != ''">
+            and d.device_name like CONCAT('%',#{device_name},'%')
+        </if>
+        ORDER BY r.id DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 工单列表个数 -->
+    <select id="getRecordListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM `elcm_device_task_record` r
+        LEFT JOIN  `user` u on r.user_id=u.id
+        INNER JOIN  `elcm_device_task_record_status` rs on r.`status`=rs.id
+
+        INNER JOIN  `elcm_device_task_relation` tr on r.relation_id=tr.id
+        INNER JOIN  `elcm_device_task` t on tr.task_id=t.id
+        INNER JOIN  `elcm_device_info` d on tr.device_id=d.id
+        INNER JOIN  `elcm_maintain` m on tr.maintain_id=m.id
+        WHERE d.project_id=#{project_id}
+        <if test="status != null and status != ''and status != 0">
+            and r.`status` = #{status}
+        </if>
+        <if test="record_number != null and record_number != ''">
+            and r.record_number like CONCAT('%',#{record_number},'%')
+        </if>
+        <if test="name != null and name != ''">
+            and u.`name` like CONCAT('%',#{name},'%')
+        </if>
+        <if test="device_number != null and device_number != ''">
+            and d.device_number like CONCAT('%',#{device_number},'%')
+        </if>
+        <if test="device_name != null and device_name != ''">
+            and d.device_name like CONCAT('%',#{device_name},'%')
+        </if>
+    </select>
+
+
+    <!-- 修改 -->
+    <update id="updateRecord" parameterType="java.util.HashMap">
+        update `elcm_device_task_record`
+        <set>
+            <if test="user_id != null">user_id=#{user_id},</if>
+            <if test="original_user_id != null">original_user_id=#{original_user_id},</if>
+            <if test="status != null">status=#{status},</if>
+            <if test="complete_describe != null">complete_describe=#{complete_describe},</if>
+            <if test="complete_time != null">complete_time=#{complete_time},</if>
+            <if test="complete_url != null">complete_url=#{complete_url}</if>
+        </set>
+        WHERE id=#{record_id}
+    </update>
+
+    <!-- 修改时间 -->
+    <update id="assignTime" parameterType="java.util.HashMap">
+        update `elcm_device_task_record`
+        <set>
+            <if test="remind_time != null">remind_time=#{remind_time},</if>
+            <if test="start_time != null">plan_start_time=#{start_time},</if>
+            <if test="plan_end_time != null">plan_end_time=#{plan_end_time}</if>
+        </set>
+        WHERE id in
+        <foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+            #{list}
+        </foreach>
+    </update>
+
+
+    <!-- 获取状态 -->
+    <select id="getStatusByIds" resultType="java.lang.String">
+        SELECT `status` FROM `elcm_device_task_record`
+        WHERE id in
+        <foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+            #{list}
+        </foreach>
+    </select>
+
+
+
+    <!-- 工工单详情 -->
+    <select id="getRecordDetail" resultType="java.util.Map">
+       SELECT r.id record_id, r.record_number,t.task_name,r.`status`,rs.status_name,
+             r.user_id,r.original_user_id,u.`name` user_name,
+             DATE_FORMAT(r.plan_start_time, '%Y-%m-%d') as plan_start_time,
+            DATE_FORMAT(r.complete_time, '%Y-%m-%d %H:%i:%s') as complete_time,
+            DATE_FORMAT(r.remind_time, '%Y-%m-%d') as remind_time,
+             d.id device_id,d.device_number,d.device_name,d.device_model,d.install_position,
+             m.operation_content,CONCAT(m.maintain_intervals,m.maintain_intervals_unit) as maintain_intervals,
+             CONCAT(m.task_work,'小时') as task_work,
+             r.complete_describe,r.complete_url
+		FROM `elcm_device_task_record` r
+        LEFT JOIN  `user` u on r.user_id=u.id
+        INNER JOIN  `elcm_device_task_record_status` rs on r.`status`=rs.id
+
+        INNER JOIN  `elcm_device_task_relation` tr on r.relation_id=tr.id
+        INNER JOIN  `elcm_device_task` t on tr.task_id=t.id
+        INNER JOIN  `elcm_device_info` d on tr.device_id=d.id
+        INNER JOIN  `elcm_maintain` m on tr.maintain_id=m.id
+        WHERE r.id=#{record_id}
+    </select>
+
+
+
+
+    <!-- 我的工单列表-->
+    <select id="getMyRecordList" resultType="java.util.HashMap">
+        SELECT r.id record_id,r.record_number,t.task_name,d.device_number,d.device_name,d.install_position,
+        m.maintain_parts,
+        DATE_FORMAT(r.plan_start_time, '%Y-%m-%d') as plan_start_time,
+        DATE_FORMAT(r.complete_time, '%Y-%m-%d %H:%i:%s') as complete_time,
+        DATE_FORMAT(r.remind_time, '%Y-%m-%d') as remind_time,
+        r.user_id,r.original_user_id,u.`name` user_name,r.`status`,rs.status_name,
+        CONCAT(m.maintain_intervals,m.maintain_intervals_unit) as maintain_intervals
+        FROM `elcm_device_task_record` r
+        LEFT JOIN  `user` u on r.user_id=u.id
+        INNER JOIN  `elcm_device_task_record_status` rs on r.`status`=rs.id
+
+        INNER JOIN  `elcm_device_task_relation` tr on r.relation_id=tr.id
+        INNER JOIN  `elcm_device_task` t on tr.task_id=t.id
+        INNER JOIN  `elcm_device_info` d on tr.device_id=d.id
+        INNER JOIN  `elcm_maintain` m on tr.maintain_id=m.id
+        WHERE d.project_id=#{project_id}
+        <if test="user_id != null and user_id != ''">
+            and r.user_id=#{user_id}
+        </if>
+        <if test="status != null and status != ''and status != 0">
+            and r.`status` = #{status}
+        </if>
+        <if test="record_number != null and record_number != ''">
+            and r.record_number like CONCAT('%',#{record_number},'%')
+        </if>
+        <if test='is_complete == "0"'>
+            and r.`status` in (2,3,5,7)
+        </if>
+        <if test='is_complete == "1"'>
+            and r.`status` in (4,6)
+        </if>
+        ORDER BY r.id DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 我的工单列表个数 -->
+    <select id="getMyRecordListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM `elcm_device_task_record` r
+        LEFT JOIN  `user` u on r.user_id=u.id
+        INNER JOIN  `elcm_device_task_record_status` rs on r.`status`=rs.id
+
+        INNER JOIN  `elcm_device_task_relation` tr on r.relation_id=tr.id
+        INNER JOIN  `elcm_device_task` t on tr.task_id=t.id
+        INNER JOIN  `elcm_device_info` d on tr.device_id=d.id
+        INNER JOIN  `elcm_maintain` m on tr.maintain_id=m.id
+        WHERE d.project_id=#{project_id}
+        <if test="user_id != null and user_id != ''">
+            and r.user_id=#{user_id}
+        </if>
+        <if test="status != null and status != ''and status != 0">
+            and r.`status` = #{status}
+        </if>
+        <if test="record_number != null and record_number != ''">
+            and r.record_number like CONCAT('%',#{record_number},'%')
+        </if>
+        <if test='is_complete == "0"'>
+            and r.`status` in (2,3,5,7)
+        </if>
+        <if test='is_complete == "1"'>
+            and r.`status` in (4,6)
+        </if>
+    </select>
+
+
+    <!-- 修改 -->
+    <update id="chargeback" parameterType="java.util.HashMap">
+        update `elcm_device_task_record`
+        <set>
+            user_id=#{user_id},
+            original_user_id=#{original_user_id},
+            status=#{status}
+        </set>
+        WHERE id=#{record_id}
+    </update>
+
+
+
+
+</mapper>

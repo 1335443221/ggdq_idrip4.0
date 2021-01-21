@@ -1,0 +1,228 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.WebAccountSupplierDao">
+
+<!--    ##########################供应商台账############################-->
+    <!-- 获取供应商列表数据 -->
+    <select id="getSupplierList" resultType="java.util.HashMap">
+        SELECT
+            s.id,
+            s.company_name,
+            s.credit_rating,
+            s.legal_representative,
+            ROUND(s.registered_capital / 10000, 0) AS registered_capital,
+            s.website,
+            s.contact,
+            s.company_profile,
+            s.qualification
+        FROM
+            account_supplier s
+        WHERE
+            s.project_id = #{project_id}
+            AND s.in_blacklist = 0
+            AND registered_capital between #{capital_start} and #{capital_end}
+            <if test="company_name != null and company_name !=''">
+                AND s.company_name like CONCAT('%',#{company_name},'%')
+            </if>
+            <if test="credit_rating != null and credit_rating !=''">
+                AND s.credit_rating ${credit_rating}
+            </if>
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 获取供应商列表数据-count -->
+    <select id="getSupplierListCount" resultType="java.lang.Integer">
+        SELECT
+            count(s.id)
+        FROM
+            account_supplier s
+        WHERE
+            s.project_id = #{project_id}
+            AND s.in_blacklist = 0
+            AND registered_capital between #{capital_start} and #{capital_end}
+            <if test="company_name != null and company_name !=''">
+                AND s.company_name like CONCAT('%',#{company_name},'%')
+            </if>
+            <if test="credit_rating != null and credit_rating !=''">
+                AND s.credit_rating ${credit_rating}
+            </if>
+    </select>
+
+    <!-- 通过供应商id获取合作项目合同列表信息 -->
+    <select id="getContractsBySupplierId" resultType="java.util.HashMap">
+        SELECT
+            ac.id AS contract_id,
+            ac.`name` AS contract_name,
+            CONCAT( date_format( ac.effect_date, '%Y-%m-%d' ), " ~ ", date_format( ac.termination_date, '%Y-%m-%d' ) ) AS date,
+            CASE
+                UNIX_TIMESTAMP( DATE( date_format( ac.termination_date, '%Y-%m-%d' ) ) ) &lt;
+                UNIX_TIMESTAMP( DATE( date_format( NOW( ), '%Y-%m-%d' ) ) )
+            WHEN TRUE THEN
+                '已结束' ELSE '进行中'
+            END status,
+            ac.file_url,
+            ac.file_name
+        FROM
+            account_contract ac
+            LEFT JOIN account_supplier_contract_relation ar ON ac.id = ar.contract_id
+        WHERE
+            ar.supplier_id = #{supplier_id}
+    </select>
+
+    <!-- 通过供应商id获取详情 -->
+    <select id="getSupplierById" resultType="java.util.HashMap">
+        SELECT
+            s.id,
+            s.company_name,
+            s.credit_rating,
+            s.legal_representative,
+            s.registered_capital,
+            s.website,
+            s.contact,
+            s.company_profile,
+            s.qualification
+        FROM
+            account_supplier s
+        WHERE
+            s.id = #{supplier_id}
+            AND s.project_id = #{project_id}
+    </select>
+
+    <!-- 新增供应商 -->
+    <insert id="addSupplier" parameterType="java.util.HashMap" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `account_supplier` ( `company_name`, `credit_rating`, `legal_representative`,
+        `registered_capital`, `website`, `contact`, `company_profile`, `qualification`, `in_blacklist`, `project_id` , `create_at`)
+        VALUES
+	    ( #{company_name}, #{credit_rating}, #{legal_representative}, #{registered_capital}, #{website},
+	    #{contact}, #{company_profile}, #{qualification}, '0', #{project_id}, NOW() );
+    </insert>
+
+    <!-- 新增供应商和合同关联信息 -->
+    <insert id="addSupplierContractRelation" parameterType="java.util.HashMap">
+        INSERT INTO `account_supplier_contract_relation` (`supplier_id`, `contract_id`)
+        VALUES
+        <foreach collection ="contract_ids" item="contract_id" index= "index" separator =",">
+            (
+                #{supplier_id},
+                #{contract_id}
+            )
+        </foreach >
+    </insert>
+
+    <!-- 修改供应商 -->
+    <update id="updateSupplier" parameterType="java.util.HashMap">
+        UPDATE `account_supplier`
+        <set>
+            <if test="company_name != null">`company_name`=#{company_name},</if>
+            <if test="credit_rating != null">`credit_rating`=#{credit_rating},</if>
+            <if test="legal_representative != null">`legal_representative`=#{legal_representative},</if>
+            <if test="registered_capital != null">`registered_capital`=#{registered_capital},</if>
+            <if test="website != null">`website`=#{website},</if>
+            <if test="contact != null">`contact`=#{contact},</if>
+            <if test="company_profile != null">`company_profile`=#{company_profile},</if>
+            <if test="qualification != null">`qualification`=#{qualification},</if>
+            <if test="qualification != null">`qualification`=#{qualification},</if>
+        </set>
+        WHERE
+            `id` = #{supplier_id}
+    </update>
+
+    <!-- 删除某供应商下的合同关联信息 -->
+    <delete id="deleteSupplierContractRelation" parameterType="java.util.HashMap">
+        DELETE FROM `account_supplier_contract_relation` WHERE supplier_id = #{supplier_id}
+    </delete>
+
+    <!-- 批量删除供应商 -->
+    <delete id="deleteSupplier" parameterType="java.util.HashMap">
+        DELETE FROM `account_supplier` WHERE id IN
+        <foreach collection="supplier_ids" item="id" index="index" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 批量删除某供应商下的合同关联信息 -->
+    <delete id="deleteSupplierContractRelations" parameterType="java.util.HashMap">
+        DELETE FROM `account_supplier_contract_relation` WHERE supplier_id IN
+        <foreach collection="supplier_ids" item="id" index="index" open="(" close=")" separator=",">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!-- 加入黑名单 -->
+    <update id="joinBlacklist" parameterType="java.util.HashMap">
+        UPDATE `account_supplier`
+        <set>
+            `in_blacklist`=1,
+            `join_time`=NOW(),
+            <if test="remarks != null">`remarks`=#{remarks},</if>
+        </set>
+        WHERE
+        `id` = #{supplier_id}
+    </update>
+
+
+<!--    ##########################黑名单############################-->
+    <!-- 获取黑名单列表数据 -->
+    <select id="getBlackList" resultType="java.util.HashMap">
+        SELECT
+            s.id,
+            s.company_name,
+            s.legal_representative,
+            s.join_time,
+            s.remarks
+        FROM
+            account_supplier s
+        WHERE
+            s.project_id = #{project_id}
+        AND s.in_blacklist = 1
+        AND date_format( s.join_time, '%Y-%m-%d' ) BETWEEN date_format( #{begin_date}, '%Y-%m-%d' ) AND date_format( #{end_date}, '%Y-%m-%d' )
+        <if test="company_name != null and company_name !=''">
+            AND s.company_name like CONCAT('%',#{company_name},'%')
+        </if>
+        <if test="legal_representative != null and legal_representative !=''">
+            AND s.legal_representative like CONCAT('%',#{legal_representative},'%')
+        </if>
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 获取黑名单列表数据-count -->
+    <select id="getBlackListCount" resultType="java.lang.Integer">
+        SELECT
+            count(s.id)
+        FROM
+            account_supplier s
+        WHERE
+            s.project_id = #{project_id}
+            AND s.in_blacklist = 1
+            AND date_format( s.join_time, '%Y-%m-%d' ) BETWEEN date_format( #{begin_date}, '%Y-%m-%d' ) AND date_format( #{end_date}, '%Y-%m-%d' )
+            <if test="company_name != null and company_name !=''">
+                AND s.company_name like CONCAT('%',#{company_name},'%')
+            </if>
+            <if test="legal_representative != null and legal_representative !=''">
+                AND s.legal_representative like CONCAT('%',#{legal_representative},'%')
+            </if>
+    </select>
+
+    <!-- 黑名单批量恢复 -->
+    <update id="restoreBlacks" parameterType="java.util.HashMap">
+        UPDATE `account_supplier`
+        <set>
+            `in_blacklist`=0,
+            `join_time`=NULL,
+            remarks=NULL
+        </set>
+        WHERE
+            `id` IN
+            <foreach collection="supplier_ids" item="id" index="index" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+    </update>
+
+
+
+
+
+<!--    ##########################数据统计############################-->
+
+</mapper>

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.AccountContractDao">
+
+    <!-- 获取合同信息 -->
+    <select id="getContractList" resultType="java.util.HashMap">
+        SELECT
+            ac.id,
+            ac.`name` AS contract_name,
+            s.company_name,
+            CONCAT( date_format( ac.effect_date, '%Y-%m-%d' ), " ~ ", date_format( ac.termination_date, '%Y-%m-%d' ) ) AS date,
+            ac.file_name,
+            ac.file_url
+        FROM
+            account_contract ac
+            JOIN account_supplier s ON ac.supplier_id = s.id
+        WHERE
+            ac.project_id = #{project_id}
+            AND ac.is_delete = 0
+            <if test="searchContent != null and searchContent !=''">
+                AND s.company_name like CONCAT('%',#{searchContent},'%')
+            </if>
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <!-- 获取合同信息->count -->
+    <select id="getContractListCount" resultType="java.lang.Integer">
+        SELECT
+            count(ac.id)
+        FROM
+            account_contract ac
+            JOIN account_supplier s ON ac.supplier_id = s.id
+        WHERE
+            ac.project_id = #{project_id}
+            AND ac.is_delete = 0
+            <if test="searchContent != null and searchContent !=''">
+                AND s.company_name like CONCAT('%',#{searchContent},'%')
+            </if>
+    </select>
+
+    <!-- 获取id获取合同详情 -->
+    <select id="getContractById" resultType="java.util.HashMap">
+        SELECT
+            ac.id,
+            ac.serial_number,
+            ac.type AS contract_type,
+            ac.`name` AS contract_name,
+            ac.`subject`,
+            date_format( ac.sign_date, '%Y-%m-%d' ) AS sign_date,
+            date_format( ac.effect_date, '%Y-%m-%d' ) AS effect_date,
+            date_format( ac.termination_date, '%Y-%m-%d' ) AS termination_date,
+            ac.total_amount,
+            ac.paid_amount,
+            ac.total_amount - ac.paid_amount AS surplus_amount,
+            ac.supplier_id,
+            s.company_name,
+            ac.agent_we_name,
+            ac.agent_we_contact,
+            ac.agent_other_name,
+            ac.agent_other_contact
+        FROM
+            account_contract ac
+            LEFT JOIN account_supplier s ON ac.supplier_id = s.id
+        WHERE
+            ac.id = #{id}
+    </select>
+
+    <!-- 修改合同信息 -->
+    <update id="updateContract" parameterType="java.util.HashMap">
+        UPDATE `account_contract`
+        <set>
+            <if test="serial_number != null">`serial_number`=#{serial_number},</if>
+            <if test="contract_type != null">`type`=#{contract_type},</if>
+            <if test="contract_name != null">`name`=#{contract_name},</if>
+            <if test="subject != null">`subject`=#{subject},</if>
+            <if test="sign_date != null">`sign_date`=#{sign_date},</if>
+            <if test="effect_date != null">`effect_date`=#{effect_date},</if>
+            <if test="termination_date != null">`termination_date`=#{termination_date},</if>
+            <if test="total_amount != null">`total_amount`=#{total_amount},</if>
+            <if test="paid_amount != null">`paid_amount`=#{paid_amount},</if>
+            <if test="supplier_id != null">`supplier_id`=#{supplier_id},</if>
+            <if test="agent_we_name != null">`agent_we_name`=#{agent_we_name},</if>
+            <if test="agent_we_contact != null">`agent_we_contact`=#{agent_we_contact},</if>
+            <if test="agent_other_name != null">`agent_other_name`=#{agent_other_name},</if>
+            <if test="agent_other_contact != null">`agent_other_contact`=#{agent_other_contact},</if>
+            <if test="update_time != null">`update_time`=#{update_time},</if>
+        </set>
+        WHERE
+            `id` = #{id};
+    </update>
+
+</mapper>

@@ -1,0 +1,577 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.AlermDataDao">
+
+	<!-- 查询数据 -->
+	<select id="getAlermData" resultType="java.util.Map">
+		SELECT * FROM
+		(
+		(SELECT l.id,l.location,l.is_deal,DATE_FORMAT(l.log_time, '%Y-%m-%d %k:%i:%s') as log_time,l.category_id,c1.category_name FROM `logs` l
+		JOIN alerm_category_n1 c1 ON c1.id=l.category
+		WHERE project_id=#{project_id}
+		AND l.category !=9999
+		AND l.alerm_type=2
+		<if test="btime != null and btime != ''">
+			AND l.log_time <![CDATA[>=]]>#{btime}
+		</if>
+		<if test="etime != null and etime != ''">
+			AND l.log_time  <![CDATA[<=]]>#{etime}
+		</if>
+		)
+		UNION ALL
+		(SELECT h.id,h.location,h.is_deal,DATE_FORMAT(h.log_time, '%Y-%m-%d %k:%i:%s') as log_time,h.category_id,c1.category_name FROM `logs_history` h
+		JOIN alerm_category_n1 c1 ON c1.id=h.category
+		WHERE project_id=#{project_id}
+		AND h.category !=9999
+		AND h.alerm_type=2
+		<if test="btime != null and btime != ''">
+			AND h.log_time <![CDATA[>=]]>#{btime}
+		</if>
+		<if test="etime != null and etime != ''">
+			AND h.log_time  <![CDATA[<=]]>#{etime}
+		</if>
+		<if test="isdeal != null and isdeal != ''">
+			AND h.is_deal=#{isdeal}
+		</if>
+		)
+		)l
+		ORDER BY l.log_time DESC
+		LIMIT ${fromNum},${pageSize}
+	</select>
+
+
+	<!--通过id获取报警信息 -->
+	<select id="getDataById" resultType="java.util.HashMap">
+		SELECT
+		l.id,l.level,l.location,l.th,l.value,l.category,
+		l.operater,
+		DATE_FORMAT(l.confirm_time, '%Y-%m-%d %k:%i:%s') AS confirm_time,
+		is_deal,
+		CASE is_register
+		WHEN '1' THEN 'true'
+		WHEN '0' THEN 'false'
+		ELSE
+		is_register END is_register,
+		DATE_FORMAT(log_time, '%Y-%m-%d %k:%i:%s')
+		AS log_time,
+		room.name roomName,
+		dir.name device_name,
+		ac.config_desc,
+		pf.factory_name,
+		c1.category_name
+		FROM `logs` l
+		LEFT JOIN `project_factory` pf ON pf.id=l.factory_id
+		LEFT JOIN `alerm_configer` ac ON ac.device_type_relation_id=l.device_type_relation_id AND ac.tag=l.tag
+		LEFT JOIN `transformerroom` room ON l.room_id=room.id
+		LEFT JOIN device_type_relation rl ON l.device_type_relation_id=rl.id
+		LEFT JOIN device_type dt ON dt.id=rl.device_type_id
+		LEFT JOIN `device_info_relation` dir ON dir.device_type=dt.device_type AND dir.id=rl.device_id
+		LEFT join alerm_category_n1 c1 on c1.id=l.category
+		WHERE l.id=#{lid}
+		UNION SELECT
+		h.id,h.level,h.location,h.th,h.value,h.category,
+		h.operater,
+		DATE_FORMAT(h.confirm_time, '%Y-%m-%d %k:%i:%s') AS confirm_time,is_deal,
+		CASE is_register
+		WHEN '1' THEN 'true'
+		WHEN '0' THEN 'false'
+		ELSE
+		is_register END is_register,
+		DATE_FORMAT(log_time, '%Y-%m-%d %k:%i:%s')
+		AS log_time,
+		room.name roomName,
+		dir.name device_name,
+		ac.config_desc,
+		pf.factory_name,
+		c1.category_name
+		FROM `logs_history` h
+		LEFT JOIN `project_factory` pf ON pf.id=h.factory_id
+		LEFT JOIN `alerm_configer` ac ON ac.device_type_relation_id=h.device_type_relation_id AND ac.tag=h.tag
+		LEFT JOIN `transformerroom` room ON h.room_id=room.id
+        LEFT JOIN device_type_relation rl ON h.device_type_relation_id=rl.id
+		LEFT JOIN device_type dt ON dt.id=rl.device_type_id
+		LEFT JOIN `device_info_relation` dir ON dir.device_type=dt.device_type AND dir.id=rl.device_id
+		LEFT JOIN alerm_category_n1 c1 on c1.id=h.category
+		WHERE h.id=#{lid}
+		limit 1
+	</select>
+
+	<select id="queryDealDetail" resultType="java.util.HashMap">
+		select
+		lid,mark_msg,repa_msg from alerm_mark_mesg
+		where lid=#{lid}
+	</select>
+
+	<insert id="saveAlermMark">
+		insert into alerm_mark_mesg
+		(`lid`,`mark_msg`,`repa_msg`,`mark_file`)
+		values
+		(#{lid},#{msg},#{repa_msg},#{mark_file})
+	</insert>
+	<update id="updateAlermMark">
+		update alerm_mark_mesg
+		<set>
+			<if test="mark_msg!= null">mark_msg= #{mark_msg},</if>
+			<if test="mark_msg!= null">repa_msg= #{repa_msg},</if>
+			<if test="mark_file!= null">mark_file= #{mark_file}</if>
+		</set>
+		where
+		lid=#{lid}
+	</update>
+
+	<select id="selectAlermById" parameterType="java.util.Map" resultType="java.util.Map">
+		SELECT
+		l.id,
+		l.level, l.tg_id,
+		l.location,l.room_id,l.factory_id,l.device_type_relation_id,
+		l.project_id, l.tag,
+		l.vtss, l.category,
+		l.th,l.`value`,
+		l.log_time,l.is_register, l.is_popup,l.is_push,l.category_id,
+		l.is_delete,l.alerm_type,al.timely_time
+		FROM
+		`logs` l
+		LEFT JOIN `alerm_level` al
+		on l.level=al.level and l.project_id=al.project_id
+		WHERE 1=1
+		<if test="lid != null and lid != ''">
+			and l.id=#{lid}
+		</if>
+	</select>
+
+	<insert id="insertHistory" parameterType="java.util.HashMap">
+		INSERT INTO
+		`logs_history`
+		(
+		id, `level`, tg_id, location,
+		room_id,factory_id,device_type_relation_id,
+		project_id, tag, vtss,
+		category,th,`value`, operater, confirm_time,log_time,
+		is_deal,is_register,is_popup,is_push,category_id,
+		is_delete,alerm_type,is_timely
+		)
+		values
+			(
+			#{id},#{level},#{tg_id},#{location},
+			#{room_id},#{factory_id},#{device_type_relation_id},
+			#{project_id},#{tag},#{vtss},
+			#{category},#{th},#{value},#{operater}, NOW(),#{log_time},
+			1,#{is_register},#{is_popup},#{is_push},#{category_id},
+			#{is_delete},#{alerm_type},#{is_timely}
+			)
+	</insert>
+
+	<delete id="deleteById">
+		delete from `logs` where id = #{lid}
+	</delete>
+
+
+	<!-- fire 报警-->
+	<!-- 根据设备获取是否报警 -->
+	<select id="getAlermByDeviceId" resultType="java.util.HashMap">
+		SELECT l.tag,ac.category_name,concat(fd.device_name,'_',l.tag)as device_tag  FROM `logs` l
+		LEFT JOIN `alerm_category_n1` ac on l.category=ac.id
+		LEFT JOIN `device_type_relation` dt on l.device_type_relation_id=dt.id
+		LEFT JOIN `fire_detector` fd  on fd.id=dt.device_id and dt.device_type_id=8
+		WHERE l.alerm_type=6
+		and ac.id !=7
+		and ac.id !=8
+		and l.is_deal=0
+		<if test="device_id != null and device_id !=''">
+			and l.device_type_relation_id=#{device_id}
+		</if>
+		<if test="list != null and list.size>=0">
+			and l.device_type_relation_id in
+			<foreach collection="list" item="list" index="index" open="(" close=")" separator=",">
+				#{list.device_id}
+			</foreach>
+		</if>
+		GROUP BY device_tag
+		ORDER BY l.log_time DESC
+	</select>
+	<!-- 火灾报警列表 -->
+	<select id="fireAlermList" resultType="java.util.HashMap">
+		SELECT l.id,l.value,f.device_name,ac.category_name,l.is_deal,concat(b.building_name,":",ff.floor)as location,
+		f.number,DATE_FORMAT(l.log_time, '%Y-%m-%d %H:%i:%s') as log_time
+		FROM
+		(SELECT id,project_id,category,device_type_relation_id,is_deal,log_time,`value`,confirm_time  FROM `logs`
+		UNION ALL
+		SELECT id,project_id,category,device_type_relation_id,is_deal,log_time,`value`,confirm_time FROM `logs_history`
+		)l
+		INNER JOIN `alerm_category_n1` ac on l.category=ac.id
+		INNER JOIN `alerm_category_n2` n2 on ac.category2_id=n2.id
+		INNER JOIN `device_type_relation` dt on l.device_type_relation_id=dt.id
+		INNER JOIN `fire_detector` f on f.id=dt.device_id
+		LEFT JOIN `fire_building` b on f.building_id=b.id
+		LEFT JOIN `fire_floor` ff on f.floor_id=ff.id
+		WHERE dt.device_type_id=8
+		and l.project_id=#{project_id}
+		<if test="category_id != null and category_id !=''">
+			and n2.id=#{category_id}
+		</if>
+		<if test="factory_id != null and factory_id !=''">
+			and f.factory_id=#{factory_id}
+		</if>
+		<if test="building_id != null and building_id !=''">
+			and f.building_id=#{building_id}
+		</if>
+		<if test="floor_id != null and floor_id !=''">
+			and f.floor_id=#{floor_id}
+		</if>
+		and l.log_time  <![CDATA[>=]]>#{beginTime}
+		AND l.log_time  <![CDATA[<=]]>#{endTime}
+		<if test="is_deal ==0">
+			and l.is_deal=#{is_deal}
+			ORDER BY l.log_time DESC
+		</if>
+		<if test="is_deal ==1">
+			and l.is_deal=#{is_deal}
+			ORDER BY l.confirm_time DESC
+		</if>
+		LIMIT ${fromNum},${pageSize}
+	</select>
+
+	<!-- 火灾报警详情 -->
+	<select id="fireAlermDetail" resultType="java.util.HashMap">
+		SELECT l.id,f.device_name,ac.category_name,l.level,l.is_deal,l.confirm_time,l.operater,concat(b.building_name,":",ff.floor)as location,
+		f.number,DATE_FORMAT(l.log_time, '%Y-%m-%d %H:%i:%s') as log_time
+		FROM
+		(SELECT id,category,device_type_relation_id,`level`,is_deal,log_time,confirm_time,operater  FROM `logs`
+		UNION ALL
+		SELECT id,category,device_type_relation_id,`level`,is_deal,log_time,confirm_time,operater FROM `logs_history`
+		)l
+		INNER JOIN `alerm_category_n1` ac on l.category=ac.id
+		INNER JOIN `device_type_relation` dt on l.device_type_relation_id=dt.id
+		INNER JOIN `fire_detector` f on f.id=dt.device_id
+		LEFT JOIN `fire_building` b on f.building_id=b.id
+		LEFT JOIN `fire_floor` ff on f.floor_id=ff.id
+		WHERE dt.device_type_id=8
+		<if test="id != null and id !=''">
+			and l.id=#{id}
+		</if>
+	</select>
+
+
+	<!-- 火灾报警列表 -->
+	<select id="fireAlermListCount" resultType="java.lang.Integer">
+		SELECT count(*)
+		FROM
+		(SELECT category,project_id,device_type_relation_id,is_deal,log_time  FROM `logs`
+		UNION ALL
+		SELECT category,project_id,device_type_relation_id,is_deal,log_time FROM `logs_history`
+		)l
+		INNER JOIN `alerm_category_n1` ac on l.category=ac.id
+		INNER JOIN `alerm_category_n2` n2 on ac.category2_id=n2.id
+		INNER JOIN `device_type_relation` dt on l.device_type_relation_id=dt.id
+		INNER JOIN `fire_detector` f on f.id=dt.device_id
+		LEFT JOIN `fire_building` b on f.building_id=b.id
+		WHERE dt.device_type_id=8
+		and l.project_id=#{project_id}
+		<if test="is_deal != null and is_deal !=''">
+			and l.is_deal=#{is_deal}
+		</if>
+		<if test="category_id != null and category_id !=''">
+			and n2.id=#{category_id}
+		</if>
+		<if test="factory_id != null and factory_id !=''">
+			and f.factory_id=#{factory_id}
+		</if>
+		<if test="building_id != null and building_id !=''">
+			and f.building_id=#{building_id}
+		</if>
+		<if test="floor_id != null and floor_id !=''">
+			and f.floor_id=#{floor_id}
+		</if>
+		AND l.log_time  <![CDATA[>=]]>#{beginTime}
+		AND l.log_time  <![CDATA[<=]]>#{endTime}
+		ORDER BY l.log_time DESC
+	</select>
+
+
+	<!-- 报警处理内容 -->
+	<select id="queryAlermDealDetail" resultType="java.util.HashMap">
+		SELECT id,lid,mark_msg,repa_msg,mark_file FROM `alerm_mark_mesg`
+		WHERE lid=#{id}
+	</select>
+
+
+
+	<!-- 修改报警配置 -->
+	<update id="fireAlConfUpdate">
+		update `alerm_configer`
+		<set>
+			<if test="category_id!= null and category_id!=''">category= #{category_id},</if>
+			<if test="confLevel!= null  and confLevel!=''">config_level= #{confLevel},</if>
+			<choose>
+				<when test="confDesc!= null  and confDesc!=''">config_desc= #{confDesc},</when>
+				<otherwise>config_desc='',</otherwise>
+			</choose>
+			<if test="parent_cate_id!=null  and parent_cate_id!=''">config_type= #{parent_cate_id},</if>
+			<if test="is_effect !=null  and is_effect !=''">is_effect= #{is_effect},</if>
+			<choose>
+				<when test="hLevel1!= null  and hLevel1!=''">h_level1=#{hLevel1},</when>
+				<otherwise>h_level1='',</otherwise>
+			</choose>
+			<choose>
+				<when test="hLevel2!= null  and hLevel2!=''">h_level2=#{hLevel2},</when>
+				<otherwise>h_level2='',</otherwise>
+			</choose>
+			<choose>
+				<when test="lLevel1!= null  and lLevel1!=''">l_level1=#{lLevel1},</when>
+				<otherwise>l_level1='',</otherwise>
+			</choose>
+			<choose>
+				<when test="lLevel2!= null  and lLevel2!=''">l_level2=#{lLevel2},</when>
+				<otherwise>l_level2='',</otherwise>
+			</choose>
+			<!-- <if test="position_val!= null and position_val!=''">position_val=
+				#{position_val} </if> -->
+			<choose>
+				<when test="position_val!= null  and position_val!=''">position_val=#{position_val}</when>
+				<otherwise>position_val=null</otherwise>
+			</choose>
+		</set>
+		where device_type_relation_id=#{device_id} and tag=#{tag} and project_id=#{project_id}
+	</update>
+
+	<!-- 保存 -->
+	<insert id="fireAlConfSave">
+		insert into alerm_configer
+		(
+		project_id,
+		factory_id,
+		category,
+		config_level,
+		device_type_relation_id,
+		tg_id,
+		tag,
+		is_effect,
+		config_desc,
+		<if test="position_val != null and position_val != ''">position_val,</if>
+		alerm_type,
+		config_type,
+		h_level1,h_level2,l_level1,l_level2
+		)
+		values
+		(
+		#{project_id},
+		#{factory_id},
+		#{category_id},
+		#{confLevel},
+		#{device_id},
+		<choose>
+			<when test="tg_id != null and tg_id != ''">#{tg_id},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		#{tag},
+		<choose>
+			<when test="is_effect != null and is_effect != ''">#{is_effect},</when>
+			<otherwise>1,</otherwise>
+		</choose>
+		<choose>
+			<when test="config_desc != null and config_desc != ''">#{config_desc},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<if test="position_val != null and position_val != ''">#{position_val},</if>
+		<choose>
+			<when test="alerm_type_id != null and alerm_type_id != ''">#{alerm_type_id},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="parent_cate_id != null and parent_cate_id != ''">#{parent_cate_id},</when>
+			<otherwise>null,</otherwise>
+		</choose>
+		<choose>
+			<when test="hLevel1 != null and hLevel1 != ''">#{hLevel1},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="hLevel2 != null and hLevel2 != ''">#{hLevel2},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="lLevel1 != null and lLevel1 != ''">#{lLevel1},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="lLevel2 != null and lLevel2 != ''">#{lLevel2}</when>
+			<otherwise>''</otherwise>
+		</choose>
+		)
+	</insert>
+
+	<!-- 查询是否存在 -->
+	<select id="selectIsExistConfig" resultType="java.util.HashMap">
+		SELECT * FROM alerm_configer c
+		where device_type_relation_id=#{device_id} and tag=#{tag} and project_id=#{project_id}
+	</select>
+
+	<!-- 根据设备获取电气火灾标签 -->
+	<select id="getFireTagByDetectorId" resultType="java.util.HashMap">
+		SELECT t.id,t.tag_name tag,t.desc FROM `fire_tag` t
+		JOIN `fire_mode_tag_relation` mr
+		ON mr.tag_id=t.id
+		JOIN `fire_detector` e
+		ON e.app_mode_id=mr.mode_id
+		WHERE e.id=#{id}
+	</select>
+	<!-- 报警配置信息 -->
+	<select id="fireAlConfData" resultType="java.util.HashMap">
+		SELECT ac.category as category_id,n2.category_name,ac.config_level as confLevel,
+		ac.is_effect,ac.h_level1,ac.h_level2,ac.l_level1,ac.l_level2,ac.position_val
+		from `alerm_configer` ac
+		LEFT JOIN `alerm_category_n2` n2 on ac.category=n2.id
+		where ac.project_id=#{project_id}
+		<if test="device_id != null and device_id !=''">
+			and ac.device_type_relation_id=#{device_id}
+		</if>
+		<if test="tag != null and tag !=''">
+			and ac.tag=#{tag}
+		</if>
+	</select>
+
+
+	<!-- 报警分类关系树 -->
+	<select id="getCategoryRelation" resultType="java.util.HashMap">
+		SELECT n2.category_name, n2.id,n3.category_name cate_name3,n3.id c3id FROM
+		`project_alerm_catrgory_relation` r
+		LEFT JOIN alerm_category_n2 n2
+		ON
+		n2.id=r.category2_id
+		LEFT JOIN alerm_category_n3 n3
+		ON
+		n2.category3_id=n3.id
+		WHERE r.project_id=#{project_id}
+		AND
+		n3.category_name IS NOT NULL
+		AND n3.id IN(2,3,4)
+		<if test="alerm_type_id != null and alerm_type_id != '' and alerm_type_id != 0">
+			and alerm_type_id = #{alerm_type_id}
+		</if>
+	</select>
+
+
+	<!-- 获取所有设备及设备关系唯一id end -->
+	<!-- 通过设备关系id获取tgid -->
+	<select id="getTgidByRelation_id" resultType="java.util.HashMap">
+		SELECT d.tg_id FROM (SELECT id,`name`,"panel" AS device_type,tg_id FROM
+		panel
+		UNION SELECT id,device_name,"elec_meter" AS device_type,tg_id FROM
+		elec_meter
+		UNION SELECT id,device_name,"water_meter" AS device_type,tg_id FROM
+		`water_meter`
+		UNION SELECT id,device_name,"fire_detector" AS device_type,tg_id FROM
+		`fire_detector`
+		UNION SELECT id,device_name,"temperature_controller" AS device_type ,tg_id
+		FROM `temperature_controller`)d
+		LEFT JOIN `device_type` dt
+		ON dt.device_type=d.device_type
+		LEFT JOIN device_type_relation rl
+		ON rl.device_type_id=dt.id
+		AND
+		rl.device_id=d.id
+		WHERE rl.id=#{device_id}
+	</select>
+
+
+
+	<!-- 带条件查询未处理数据 -->
+	<select id="getNoDealAlermData" resultType="java.util.Map">
+		SELECT
+		l.id,
+		l.level, l.tg_id,
+		l.location,l.room_id,l.factory_id,l.device_type_relation_id,
+		l.project_id, l.tag,
+		l.vtss, l.category,
+		l.th,l.`value`,
+		l.log_time,l.is_register, l.is_popup,l.is_push,l.category_id,
+		l.is_delete,l.alerm_type,al.timely_time
+		FROM `logs` l
+		LEFT JOIN `alerm_level` al
+		on l.level=al.level and l.project_id=al.project_id
+		JOIN alerm_category_n1 c1
+		ON c1.id=l.category
+		<if test="category != null and category != '' and category != 0">
+			JOIN alerm_category_n1 c
+			ON c.category2_id=#{category}
+			AND l.category=c.id
+		</if>
+		WHERE l.project_id=#{project_id}
+
+		AND l.category !=9999
+		<if test="device_id != null and device_id != ''">
+			AND l.device_type_relation_id =#{device_id}
+		</if>
+		<if test="btime != null and btime != ''">
+			AND l.log_time <![CDATA[>=]]>#{btime}
+		</if>
+		<if test="etime != null and etime != ''">
+			AND l.log_time  <![CDATA[<=]]>#{etime}
+		</if>
+		AND l.is_deal=0
+		<if test="factory_id != null and factory_id != '' and factory_id !=0">
+			AND l.factory_id = #{factory_id}
+		</if>
+		<if test="business_name != null and business_name != ''">
+			AND business_name  LIKE "%"#{business_name}"%"
+		</if>
+		ORDER BY l.log_time DESC
+	</select>
+
+	<insert id="insertAllHistory" parameterType="java.util.HashMap">
+		INSERT INTO
+		`logs_history`
+		(
+		id, `level`, tg_id, location,
+		room_id,factory_id,device_type_relation_id,
+		project_id, tag, vtss,
+		category,th,`value`, operater, confirm_time,log_time,
+		is_deal,is_register,is_popup,is_push,category_id,
+		is_delete,alerm_type,is_timely
+		)
+		values
+		<foreach collection ="list" item="alerm" index= "index" separator =",">
+			(
+			#{alerm.id},#{alerm.level},#{alerm.tg_id},#{alerm.location},
+			#{alerm.room_id},#{alerm.factory_id},#{alerm.device_type_relation_id},
+			#{alerm.project_id},#{alerm.tag},#{alerm.vtss},
+			#{alerm.category},#{alerm.th},#{alerm.value},#{alerm.operater}, NOW(),#{alerm.log_time},
+			1,#{alerm.is_register},#{alerm.is_popup},#{alerm.is_push},#{alerm.category_id},
+			#{alerm.is_delete},#{alerm.alerm_type},#{alerm.is_timely}
+			)
+		</foreach >
+
+	</insert>
+
+	<insert id="insertAllMesg" parameterType="java.util.HashMap">
+		insert into alerm_mark_mesg
+		(
+		`lid`,
+		`mark_msg`
+		)
+		values
+		<foreach collection ="list" item="msg" index= "index" separator =",">
+			(
+			#{msg.lid},
+			#{msg.msg}
+			)
+		</foreach >
+	</insert>
+
+	<delete id="deleteAllMesg" parameterType="java.util.HashMap">
+		delete from alerm_mark_mesg
+		where lid in
+		<foreach collection="list"  item="item" open="(" separator="," close=")" >
+			#{item}
+		</foreach>
+	</delete>
+
+	<delete id="deleteAllLogs" parameterType="java.util.HashMap">
+		delete from logs
+		where id in
+		<foreach collection="list"  item="item" open="(" separator="," close=")" >
+			#{item}
+		</foreach>
+	</delete>
+</mapper>

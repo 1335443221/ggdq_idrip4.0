@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.ElecRunDao">
+
+    <!-- 获取区域用能 分类的 配电室列表-->
+    <select id="getCategoryTransformerroom" resultType="java.util.HashMap">
+        SELECT
+        epcr.category_id AS category_id,
+        epcr.category_name AS category_name,
+        traroom.id AS rid
+        FROM
+        elec_project_category_relation AS epcr
+        LEFT JOIN transformerroom AS traroom ON epcr.category_id = traroom.category_id
+        WHERE
+        epcr.project_id = #{project_id}
+        AND epcr.category_type_id = 2
+        AND epcr.parent_category_id=0
+        AND epcr.factory_id = #{factory_id}
+        <if test="category_id != null and category_id != ''">
+            and epcr.category_id = #{category_id}
+        </if>
+        <if test="rid != null and rid != ''">
+            and traroom.id = #{rid}
+        </if>
+        ORDER BY
+        epcr.category_id ASC
+    </select>
+
+
+    <!-- 用电监控配电室及进线列表 -->
+    <select id="getElecRoomAndLineListByRid" resultType="java.util.HashMap">
+		SELECT
+		    m.id device_id,
+			m.device_name,
+			epcr.category_name device_desc,
+			m.tg_id,
+			epcr.category_id AS panel_id
+		FROM
+			elec_project_category_relation AS epcr
+		LEFT JOIN `elec_category_meter_relation` emr
+		ON emr.category_id=epcr.category_id
+		LEFT JOIN elec_category AS ec ON epcr.category_id = ec.id
+		LEFT JOIN elec_meter m
+		ON m.id=emr.meter_id
+		LEFT JOIN transformerroom r
+		ON r.id=m.transformerroom_id
+		WHERE epcr.parent_category_id=0
+		AND  epcr.project_id =#{project_id}
+	  	AND ec.category_type =3
+		AND epcr.factory_id = #{factory_id}
+		AND r.id = #{rid}
+      LIMIT ${fromNum},${pageSize}
+	</select>
+    <!-- 用电监控配电室及进线列表 -->
+    <select id="getElecRoomAndLineListByRidCount" resultType="java.lang.Integer">
+		SELECT
+		   COUNT(*)
+		FROM
+			elec_project_category_relation AS epcr
+		LEFT JOIN `elec_category_meter_relation` emr
+		ON emr.category_id=epcr.category_id
+		LEFT JOIN elec_category AS ec ON epcr.category_id = ec.id
+		LEFT JOIN elec_meter m
+		ON m.id=emr.meter_id
+		LEFT JOIN transformerroom r
+		ON r.id=m.transformerroom_id
+		WHERE epcr.parent_category_id=0
+		AND  epcr.project_id =#{project_id}
+	  	AND ec.category_type =3
+		AND epcr.factory_id = #{factory_id}
+		AND r.id = #{rid}
+	</select>
+
+
+	<!-- 由父柜体id获取出线 -->
+	<select id="getChildrenCategoryList" resultType="java.util.HashMap">
+			SELECT  m.id device_id,
+                    m.device_name,
+                    m.desc device_desc,
+                    m.tg_id,
+                    epcr.parent_category_id AS panel_id
+                FROM
+                    elec_project_category_relation AS epcr
+                LEFT JOIN `elec_category_meter_relation` emr
+                ON emr.category_id=epcr.category_id
+                LEFT JOIN elec_category AS ec ON epcr.category_id = ec.id
+                LEFT JOIN elec_meter m
+                ON m.id=emr.meter_id
+                LEFT JOIN transformerroom r
+                ON r.id=m.transformerroom_id
+				WHERE epcr.parent_category_id!=0
+				and epcr.parent_category_id=#{parent_category_id}
+              AND ec.category_type =3
+	</select>
+
+</mapper>

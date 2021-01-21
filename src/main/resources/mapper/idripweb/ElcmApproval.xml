@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.ElcmApprovalDao">
+
+    <!-- 审批类型 -->
+    <select id="getApprovalType" resultType="java.util.HashMap">
+        SELECT t.id type_id,t.type_name FROM `elcm_approval_type` t
+    </select>
+
+    <!-- 审批列表-->
+    <select id="getApprovalList" resultType="java.util.HashMap">
+        SELECT a.id approval_id,a.odd_number,a.type_id,t.type_name,a.approval_name,u.name user_name,a.apply_at,a.`status`,s.status_name
+        FROM `elcm_approval` a
+        INNER JOIN `elcm_approval_type` t on a.type_id=t.id
+        INNER JOIN `elcm_approval_status` s on a.`status`=s.`status`
+        LEFT JOIN `user` u on a.apply_by=u.id
+        WHERE a.project_id=#{project_id}
+        <if test='status == "1"'>
+            and a.status =1
+        </if>
+        <if test='status == "2"'>
+            and a.status!=1 and a.status!=4
+        </if>
+        <if test="type_id != null and type_id != '' and type_id != 0 and type_id != '0'">
+            and a.type_id=#{type_id}
+        </if>
+        <if test="param != null and param != ''">
+            and (a.odd_number like CONCAT('%',#{param},'%')
+            or  u.name like CONCAT('%',#{param},'%'))
+        </if>
+        ORDER BY a.apply_at DESC
+        LIMIT ${fromNum},${pageSize}
+    </select>
+
+    <select id="getApprovalListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*)
+        FROM `elcm_approval` a
+        INNER JOIN `elcm_approval_type` t on a.type_id=t.id
+        INNER JOIN `user` u on a.apply_by=u.id
+        WHERE a.project_id=#{project_id}
+        <if test='status == "1"'>
+            and a.status =1
+        </if>
+        <if test='status == "2"'>
+            and a.status!=1 and a.status!=4
+        </if>
+        <if test="type_id != null and type_id != '' and type_id != 0 and type_id != '0'">
+            and a.type_id=#{type_id}
+        </if>
+        <if test="param != null and param != ''">
+            and (a.odd_number like CONCAT('%',#{param},'%')
+            or  u.name like CONCAT('%',#{param},'%'))
+        </if>
+    </select>
+
+    <!-- 报废查询 -->
+    <select id="getScrapDetail" resultType="java.util.HashMap">
+        SELECT ds.id scrap_id,ds.scrap_number,t.name assets_type,ds.device_id,d.device_number,d.device_name,d.device_model,d.install_position,
+        ds.apply_reason,u.`name` as apply_user,DATE_FORMAT(ds.apply_time, '%Y-%m-%d %H:%i:%s') as apply_time,
+        ds.disposal_mode,ds.disposal_amount,ds.`status`,s.status_name
+        FROM `elcm_device_scrap` ds
+        LEFT JOIN `user` u on ds.apply_user=u.id
+        INNER JOIN `elcm_device_info` d on ds.device_id=d.id
+        INNER JOIN `elcm_assets_type` t on d.assets_id=t.id
+        INNER JOIN `elcm_device_scrap_status` s on s.`status`=ds.`status`
+        WHERE ds.scrap_number=#{odd_number} AND ds.project_id=#{project_id}
+    </select>
+
+    <!-- 任务 -->
+    <select id="getTaskDetail" resultType="java.util.Map">
+       SELECT t.id task_id,t.project_id,t.task_number,t.maintenance_type_id,mt.maintenance_type_name,t.task_name,
+       DATE_FORMAT(t.begin_time, '%Y-%m-%d') as begin_time,
+       DATE_FORMAT(t.end_time, '%Y-%m-%d') as end_time,
+       DATE_FORMAT(t.actual_end_time, '%Y-%m-%d') as actual_end_time,
+       t.is_repeat,t.status,s.status_name,t.is_start
+       FROM `elcm_device_task` t
+       INNER JOIN `elcm_maintenance_type` mt on mt.maintenance_type_id=t.maintenance_type_id
+       INNER JOIN `elcm_device_task_status` s on s.`status`=t.`status`
+       WHERE  t.task_number=#{odd_number} AND t.project_id=#{project_id}
+    </select>
+
+    <!-- 工工单详情 -->
+    <select id="getRecordDetail" resultType="java.util.Map">
+        SELECT r.id record_id, r.record_number,t.task_name,r.`status`,rs.status_name,
+             r.user_id,r.original_user_id,u.`name` user_name,
+             DATE_FORMAT(r.plan_start_time, '%Y-%m-%d') as plan_start_time,
+             DATE_FORMAT(t.end_time, '%Y-%m-%d') as end_time,
+             DATE_FORMAT(r.original_plan_start_time, '%Y-%m-%d') as original_plan_start_time,
+            DATE_FORMAT(r.complete_time, '%Y-%m-%d %H:%i:%s') as complete_time,
+            DATE_FORMAT(r.remind_time, '%Y-%m-%d %H:%i:%s') as remind_time,
+             d.id device_id,d.device_number,d.device_name,d.device_model,d.install_position,
+             m.operation_content,CONCAT(m.maintain_intervals,m.maintain_intervals_unit) as maintain_intervals,
+             m.maintain_intervals maintain_intervals_count,m.maintain_intervals_unit,
+             CONCAT(m.task_work,'小时') as task_work,tr.task_id,
+             r.complete_describe,r.complete_url,t.maintenance_type_id
+		FROM `elcm_device_task_record` r
+        LEFT JOIN  `user` u on r.user_id=u.id
+        INNER JOIN  `elcm_device_task_record_status` rs on r.`status`=rs.id
+
+        INNER JOIN  `elcm_device_task_relation` tr on r.relation_id=tr.id
+        INNER JOIN  `elcm_device_task` t on tr.task_id=t.id
+        INNER JOIN  `elcm_device_info` d on tr.device_id=d.id
+        INNER JOIN  `elcm_maintain` m on tr.maintain_id=m.id
+        WHERE  r.record_number=#{odd_number} AND t.project_id=#{project_id}
+    </select>
+
+
+    <!-- 计划关联关系 -->
+    <select id="getElcmTaskRelationById" resultType="com.sl.common.entity.ElcmTaskRecord">
+         SELECT r.id relationId,t.begin_time beginTime,t.end_time endTime,t.is_repeat isRepeat,t.is_start isStart,
+          m.maintain_intervals maintainIntervals,m.maintain_intervals_unit maintainIntervalsUnit,
+          dtr.original_plan_start_time planStartTime
+            FROM `elcm_device_task_relation` r
+            INNER JOIN `elcm_device_task` t on r.task_id=t.id
+            INNER JOIN `elcm_maintain` m on r.maintain_id=m.id
+            LEFT JOIN
+            (SELECT * FROM(
+            SELECT original_plan_start_time,relation_id  FROM `elcm_device_task_record`  ORDER BY  plan_start_time DESC
+            )tr GROUP BY relation_id)dtr on dtr.relation_id=r.id
+            WHERE t.id=#{task_id}
+    </select>
+    <!-- 所有未完成的任务数量 -->
+    <select id="getAllTaskRecordCountByTaskId" resultType="java.lang.Integer">
+         SELECT COUNT(*)
+         FROM `elcm_device_task_record` r
+         INNER JOIN  `elcm_device_task_relation` tr on r.relation_id=tr.id
+         WHERE tr.task_id=#{task_id} AND r.status !=6
+    </select>
+
+
+    <!-- 任务 -->
+    <select id="getTaskRelation" resultType="java.util.Map">
+      SELECT t.task_id,t.device_id,t.maintain_id,d.device_name,d.device_number,d.install_position,d.device_model,
+		m.maintain_parts,m.operation_content,m.operation_steps,m.maintain_intervals,
+		m.maintain_intervals_unit,m.task_work,m.last_maintenance_time
+        FROM `elcm_device_task_relation` t
+	    INNER JOIN `elcm_device_info` d on t.device_id=d.id
+        INNER JOIN `elcm_maintain` m on t.maintain_id=m.id
+       WHERE  t.task_id=#{task_id}
+    </select>
+
+
+    <!-- 维修查询 -->
+    <select id="getRepairDetail" resultType="java.util.HashMap">
+       SELECT m.id repair_id,m.repair_number,u.`name` repair_user,m.repair_user repair_user_id,m.repair_original_user,
+			   m.repair_status `status`,s.status_name,
+              DATE_FORMAT(m.repair_time, '%Y-%m-%d %H:%i:%s') as repair_time,
+              DATE_FORMAT(m.assign_time, '%Y-%m-%d %H:%i:%s') as assign_time,d.id device_id,
+			  d.device_number,d.device_name,d.device_model,d.install_position,
+			  m.mal_describe,m.urgency,u2.`name` report_user,
+			   DATE_FORMAT(m.report_time, '%Y-%m-%d %H:%i:%s') as report_time,m.mal_url,m.repair_describe,m.repair_url
+        FROM `elcm_malfunction` m
+        INNER JOIN `elcm_device_info` d on m.device_id=d.id
+        LEFT JOIN `user` u on m.repair_user=u.id
+        LEFT JOIN `user` u2 on m.report_user=u2.id
+        INNER JOIN `elcm_malfunction_repair_status` s on m.`repair_status`=s.`status`
+        WHERE m.repair_number=#{odd_number} AND m.project_id=#{project_id}
+    </select>
+
+    <!-- 新加计划实际结束时间 -->
+    <update id="addTaskActualEndTime" parameterType="java.util.HashMap">
+        update `elcm_device_task`
+        <set>
+            actual_end_time=SYSDATE(),
+            status=6
+        </set>
+        WHERE id=#{task_id}
+    </update>
+
+
+
+    <!-- 查看审批 -->
+    <select id="getApproval" resultType="java.util.HashMap">
+       SELECT a.id approval_id,a.odd_number,a.type_id,t.type_name,a.approval_name,u.name user_name,a.apply_at,a.`status`,s.status_name
+        FROM `elcm_approval` a
+        INNER JOIN `elcm_approval_type` t on a.type_id=t.id
+        INNER JOIN `elcm_approval_status` s on a.`status`=s.`status`
+        LEFT JOIN `user` u on a.apply_by=u.id
+        WHERE a.id=#{approval_id}
+    </select>
+
+
+    <!-- 修改状态 -->
+    <update id="updateApproveStatus" parameterType="java.util.HashMap">
+        update `elcm_approval`
+        <set>
+            <if test="status != null">status=#{status}</if>
+        </set>
+        WHERE id=#{approval_id}
+    </update>
+
+
+
+    <select id="getElcmTaskRelation" resultType="com.sl.common.entity.ElcmTaskRecord">
+          SELECT r.id relationId,t.begin_time beginTime,t.end_time endTime,t.is_repeat isRepeat,t.is_start isStart,
+          m.maintain_intervals maintainIntervals,m.maintain_intervals_unit maintainIntervalsUnit,
+          dtr.original_plan_start_time planStartTime
+            FROM `elcm_device_task_relation` r
+            INNER JOIN `elcm_device_task` t on r.task_id=t.id
+            INNER JOIN `elcm_maintain` m on r.maintain_id=m.id
+            LEFT JOIN
+            (SELECT * FROM(
+            SELECT original_plan_start_time,relation_id  FROM `elcm_device_task_record`  ORDER BY  plan_start_time DESC
+            )tr GROUP BY relation_id)dtr on dtr.relation_id=r.id
+            WHERE t.task_number=#{odd_number} AND t.project_id=#{project_id}
+    </select>
+
+
+
+    <insert id="insertAllElcmTaskRecord" parameterType="java.util.HashMap">
+        insert into `elcm_device_task_record`
+        (
+        `plan_start_time`,
+        `plan_end_time`,
+        `original_plan_start_time`,
+        `status`,
+        `relation_id`,
+        `record_number`,
+        `project_id`
+        )
+        values
+        <foreach collection ="list" item="record" index= "index" separator =",">
+            (
+            #{record.plan_start_time},
+            #{record.plan_end_time},
+            #{record.original_plan_start_time},
+            #{record.status},
+            #{record.relation_id},
+            #{record.record_number},
+            #{record.project_id}
+            )
+        </foreach >
+    </insert>
+
+
+
+</mapper>

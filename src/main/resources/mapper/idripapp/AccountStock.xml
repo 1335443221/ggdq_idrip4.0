@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.AccountStockDao">
+
+    <!-- 获取库存列表 -->
+    <select id="getStockList" resultType="java.util.HashMap">
+        SELECT s.id,s.name,s.qr_code qrCode,s.amount,s.unit FROM `account_stock` s
+        WHERE s.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        ORDER BY s.update_time DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+
+    <!-- 获取库存列表总数 -->
+    <select id="getStockListCount" resultType="java.lang.Integer">
+       SELECT COUNT(*) FROM `account_stock` s
+       WHERE s.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+    </select>
+
+
+    <!-- 获取库存列表 -->
+    <select id="getAllStock" resultType="java.util.HashMap">
+        SELECT s.id,s.name,s.qr_code qrCode FROM `account_stock` s
+        WHERE s.project_id=#{project_id}
+    </select>
+
+    <!-- 获取库存列表 -->
+    <select id="getStockOutList" resultType="java.util.HashMap">
+       SELECT so.id,s.name,so.receive_time receiveTime,so.receive_amount receiveAmount
+       FROM `account_stock_out` so
+       INNER JOIN `account_stock` s ON so.material_id=s.id
+       WHERE s.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        ORDER BY so.receive_time DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+    <!-- 获取库存列表 -->
+    <select id="getStockOutListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `account_stock_out` so
+        INNER JOIN `account_stock` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+    </select>
+
+
+    <!-- 添加-->
+    <insert id="insertStockOut">
+        INSERT INTO `account_stock_out`
+        (
+        `material_id`,`receive_user`,`receive_time`,`receive_amount`,`examine_user`,`remark`)
+        VALUES
+	    (#{materialId},#{receiveUser},#{receiveTime},#{receiveAmount},#{examineUser},#{remark})
+    </insert>
+
+
+    <!-- 修改-->
+    <update id="updateStockOut">
+        UPDATE `account_stock_out`
+        <set>
+            <if test="materialId!= null">`material_id`= #{materialId},</if>
+            <if test="receiveUser!= null">receive_user= #{receiveUser},</if>
+            <if test="receiveTime!= null">receive_time= #{receiveTime},</if>
+            <if test="receiveAmount!= null">receive_amount= #{receiveAmount},</if>
+            <if test="examineUser!= null">examine_user= #{examineUser},</if>
+            <if test="remark!= null">remark= #{remark}</if>
+        </set>
+        where
+        id=#{id}
+    </update>
+
+
+    <!-- 删除-->
+    <delete id="deleteStockOut">
+        DELETE  FROM  `account_stock_out`
+        where
+        id =#{id}
+    </delete>
+
+    <!-- 获取出库 -->
+    <select id="getStockOutDetail" resultType="com.sl.idripapp.entity.AccountMaterialOut">
+        SELECT so.id,s.name,s.qr_code qrCode,so.receive_user receiveUser,so.receive_time receiveTime,so.receive_amount receiveAmount,so.examine_user examineUser
+        FROM `account_stock_out` so
+        INNER JOIN `account_stock` s ON so.material_id=s.id
+        WHERE so.id=#{id}
+    </select>
+
+
+    <!-- 获取入库列表 -->
+    <select id="getStockInList" resultType="java.util.HashMap">
+        SELECT so.id,s.name,so.warehousing_time warehousingTime,so.warehousing_amount warehousingAmount FROM `account_stock_in` so
+        INNER JOIN `account_stock` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+        ORDER BY so.warehousing_time DESC
+        limit #{fromNum},#{pageSize}
+    </select>
+
+    <!-- 获取库存列表 -->
+    <select id="getStockInListCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM `account_stock_in` so
+        INNER JOIN `account_stock` s ON so.material_id=s.id
+        WHERE s.project_id=#{project_id}
+        <if test="name != null and name != ''">
+            and s.name like CONCAT('%',#{name},'%')
+        </if>
+    </select>
+
+    <!-- 添加-->
+    <insert id="insertStockIn">
+        INSERT INTO `account_stock_in`
+        (
+        `material_id`,`warehousing_user`,`warehousing_time`,`warehousing_amount`,`examine_user`,`remark`)
+        VALUES
+	    (#{materialId},#{warehousingUser},#{warehousingTime},#{warehousingAmount},#{examineUser},#{remark})
+    </insert>
+
+    <!-- 修改-->
+    <update id="updateStockIn">
+        UPDATE `account_stock_in`
+        <set>
+            <if test="materialId!= null">`material_id`= #{materialId},</if>
+            <if test="warehousingUser!= null">warehousing_user= #{warehousingUser},</if>
+            <if test="warehousingTime!= null">warehousing_time= #{warehousingTime},</if>
+            <if test="warehousingAmount!= null">warehousing_amount= #{warehousingAmount},</if>
+            <if test="examineUser!= null">examine_user= #{examineUser},</if>
+            <if test="remark!= null">remark= #{remark}</if>
+        </set>
+        where
+        id=#{id}
+    </update>
+
+    <!-- 删除-->
+    <delete id="deleteStockIn">
+        DELETE  FROM  `account_stock_in`
+        where
+        id =#{id}
+    </delete>
+
+
+
+    <!-- 获取库存数量 -->
+    <select id="getStockAmount" resultType="java.lang.Integer">
+        SELECT s.amount FROM `account_stock` s WHERE id=#{id}
+    </select>
+
+    <!-- 获取库存数量 -->
+    <select id="getStockOutAmount" resultType="java.lang.Integer">
+        SELECT s.receive_amount FROM `account_stock_out` s WHERE id=#{id}
+    </select>
+
+    <!-- 获取库存数量 -->
+    <select id="getStockInAmount" resultType="java.lang.Integer">
+        SELECT s.warehousing_amount FROM `account_stock_in` s WHERE id=#{id}
+    </select>
+
+    <!-- 修改库存-->
+    <update id="outOrInStock">
+        UPDATE `account_stock`
+        <set>
+            <if test="amount!= null">amount=#{amount},</if>
+            update_time= SYSDATE()
+        </set>
+        where
+        id=#{id}
+    </update>
+
+    <!-- 获取入库 -->
+    <select id="getStockInDetail" resultType="java.util.HashMap">
+        SELECT so.id,s.name,s.qr_code qrCode,so.warehousing_user warehousingUser,so.warehousing_time warehousingTime,so.warehousing_amount warehousingAmount,so.examine_user examineUser
+        FROM `account_stock_in` so
+        INNER JOIN `account_stock` s ON so.material_id=s.id
+        WHERE so.id=#{id}
+    </select>
+
+</mapper>

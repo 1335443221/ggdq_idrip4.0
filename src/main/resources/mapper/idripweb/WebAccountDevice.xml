@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripweb.dao.WebAccountDeviceDao">
+
+    <!-- 获取所有设备 -->
+    <select id="getAllDevice" resultType="java.util.Map">
+     SELECT d.id,d.name FROM `account_device` d
+     WHERE d.project_id=#{project_id}
+     ORDER BY d.id DESC
+    </select>
+    <!-- 获取 -->
+    <select id="getDeviceCycle" resultType="java.util.Map">
+     SELECT d.id,d.cycle FROM `account_device_cycle` d
+     WHERE d.project_id=#{project_id}
+    </select>
+    <!-- 获取 -->
+    <select id="getDeviceRemind" resultType="java.util.Map">
+     SELECT d.id,d.remind FROM `account_device_remind` d
+     WHERE d.project_id=#{project_id}
+    </select>
+    <!-- 获取 -->
+    <select id="getDeviceFrequency" resultType="java.util.Map">
+     SELECT d.id,d.frequency FROM `account_device_frequency` d
+     WHERE d.project_id=#{project_id}
+    </select>
+
+
+    <!-- 添加设备-->
+    <insert id="addDevice">
+        INSERT INTO `account_device`
+        (`name`,`number`,`cycle_id`,`first_maintenance_time`,`first_maintainer_id`,`remind_id`,
+        `frequency_id`,`project_id`,`last_maintenance_time`,`last_maintainer`)
+        VALUES
+	    (#{name},#{number},#{cycle_id},#{first_maintenance_time},#{first_maintainer_id},#{remind_id},
+	    #{frequency_id},#{project_id},#{first_maintenance_time},#{first_maintainer})
+    </insert>
+
+
+    <!-- 修改-->
+    <update id="updateDevice">
+        UPDATE `account_device`
+        <set>
+            <if test="name!= null">`name`=#{name}</if>
+        </set>
+        where
+        id=#{id}
+    </update>
+
+
+    <!-- 删除-->
+    <delete id="deleteDevice">
+        DELETE FROM `account_activity_type`
+        WHERE id =#{id}
+    </delete>
+
+
+
+    <!-- 获取设备详情 -->
+    <select id="getDevice" resultType="java.util.Map">
+     SELECT d.id,d.`name`,d.number,d.first_maintenance_time,d.first_maintainer_id,u.name first_maintainer,d.last_maintenance_time,d.last_maintainer,c.cycle,f.frequency,r.remind,d.last_status
+     FROM `account_device` d
+    LEFT JOIN `account_device_cycle` c ON d.cycle_id=c.id
+    LEFT JOIN `account_device_frequency` f ON d.frequency_id=f.id
+    LEFT JOIN `account_device_remind` r ON d.remind_id=r.id
+    LEFT JOIN `app_register_user` u ON d.first_maintainer_id=u.id
+     WHERE d.id=#{id}
+    </select>
+
+
+    <!-- 获取设备详情 -->
+    <select id="getMaintenanceStatus" resultType="java.util.Map">
+     SELECT s.id,s.status_name FROM `account_maintenance_status`  s
+    </select>
+
+
+    <!-- 获取设备详情 -->
+    <select id="getMaintenanceByDeviceDesc" resultType="java.util.Map">
+     SELECT * FROM `account_maintenance` s WHERE s.device_id=#{device_id}
+     ORDER BY maintenance_time DESC
+     LIMIT 1
+    </select>
+
+
+    <!-- 添加维保记录-->
+    <insert id="addMaintenance">
+        INSERT INTO `account_maintenance`
+        (`device_id`,`maintenance_time`,`maintainer`,`status`,`is_fault`,`remark`,
+        `last_maintenance_time`,`last_maintainer`,`initial_status`,`create_at`)
+        VALUES
+	    (#{device_id},#{maintenance_time},#{maintainer},#{status},#{is_fault},#{remark},
+	    #{last_maintenance_time},#{last_maintainer},#{status},SYSDATE())
+    </insert>
+
+    <!-- 获取维保 -->
+    <select id="getMaintenanceList" resultType="java.util.HashMap">
+     SELECT m.id,d.name,d.number,c.cycle,m.last_maintenance_time,m.last_maintainer,m.maintenance_time,m.maintainer,m.status,s.status_name,m.remark,m.is_fault
+     FROM `account_maintenance` m
+	 INNER JOIN `account_device` d
+     LEFT JOIN `account_device_cycle` c ON d.cycle_id=c.id
+	 LEFT JOIN `account_maintenance_status` s ON m.status=s.id
+	 WHERE d.project_id=#{project_id} AND m.is_delete=0
+    <if test="begin_time != null and begin_time != ''">
+        AND m.maintenance_time <![CDATA[>=]]>#{begin_time}
+    </if>
+    <if test="end_time != null and end_time != ''">
+        AND m.maintenance_time  <![CDATA[<=]]>#{end_time}
+    </if>
+    <if test="name != null and name != ''">
+        and d.`name` like CONCAT('%',#{name},'%')
+    </if>
+    <if test="number != null and number != ''">
+        and d.`number` like CONCAT('%',#{number},'%')
+    </if>
+    <if test="cycle_id != null and cycle_id != ''">
+        and d.`cycle_id` =#{cycle_id}
+    </if>
+    ORDER BY m.maintenance_time DESC
+    LIMIT ${fromNum},${pageSize}
+    </select>
+
+
+    <!-- 获取维保 -->
+    <select id="getMaintenanceListCount" resultType="java.lang.Integer">
+     SELECT COUNT(*)
+     FROM `account_maintenance` m
+	 INNER JOIN `account_device` d
+     LEFT JOIN `account_device_cycle` c ON d.cycle_id=c.id
+	 LEFT JOIN `account_maintenance_status` s ON m.status=s.id
+	 WHERE d.project_id=#{project_id} AND m.is_delete=0
+    <if test="begin_time != null and begin_time != ''">
+        AND m.maintenance_time <![CDATA[>=]]>#{begin_time}
+    </if>
+    <if test="end_time != null and end_time != ''">
+        AND m.maintenance_time  <![CDATA[<=]]>#{end_time}
+    </if>
+    <if test="name != null and name != ''">
+        and d.`name` like CONCAT('%',#{name},'%')
+    </if>
+    <if test="number != null and number != ''">
+        and d.`number` like CONCAT('%',#{number},'%')
+    </if>
+    <if test="cycle_id != null and cycle_id != ''">
+        and d.`cycle_id` =#{cycle_id}
+    </if>
+    </select>
+
+
+
+    <!-- 修改-->
+    <update id="updateDeviceByMaintenance">
+        UPDATE `account_device`
+        <set>
+            <if test="maintenance_time!= null">`last_maintenance_time`=#{maintenance_time},</if>
+            <if test="maintainer!= null">`last_maintainer`=#{maintainer},</if>
+            <if test="status!= null">`last_status`=#{status}</if>
+        </set>
+        where
+        id=#{device_id}
+    </update>
+
+
+
+    <!-- 修改维保-->
+    <update id="updateMaintenance">
+        UPDATE `account_maintenance`
+        <set>
+            <if test="maintenance_time!= null">`maintenance_time`=#{maintenance_time},</if>
+            <if test="maintainer!= null">`maintainer`=#{maintainer},</if>
+            <if test="status!= null">`status`=#{status},</if>
+            <if test="is_fault!= null">`is_fault`=#{is_fault},</if>
+            <if test="remark!= null">`remark`=#{remark}</if>
+        </set>
+        WHERE
+        id=#{id}
+    </update>
+
+
+    <!-- 删除-->
+    <update id="deleteMaintenance">
+        UPDATE `account_maintenance`
+        <set>
+            is_delete=1,
+            delete_time=SYSDATE()
+        </set>
+        WHERE id IN
+        <foreach collection="list"  item="item" open="(" separator="," close=")" >
+            #{item}
+        </foreach>
+    </update>
+
+
+<!--
+    &lt;!&ndash; 获取维保信息 &ndash;&gt;
+    <select id="getMaintenanceById" resultType="java.util.Map">
+     SELECT * FROM `account_maintenance` s WHERE s.id=#{id}
+    </select>
+
+    &lt;!&ndash; 获取维保信息 &ndash;&gt;
+    <select id="getMaintenanceByIdLast" resultType="java.util.Map">
+     SELECT * FROM `account_maintenance` s WHERE s.id < #{id} AND device_id=#{device_id}
+      ORDER BY s.id DESC
+      LIMIT 1
+    </select>
+    &lt;!&ndash; 获取维保信息 &ndash;&gt;
+    <select id="getMaintenanceByIdNext" resultType="java.util.Map">
+     SELECT * FROM `account_maintenance` s WHERE s.id >#{id} AND device_id=#{device_id} LIMIT 1
+    </select>-->
+
+
+    <select id="getMaintenanceGroupByFault" resultType="java.util.Map">
+     SELECT m.is_fault,COUNT(*) as count FROM `account_maintenance`  m
+     INNER JOIN `account_device` d ON m.device_id=d.id
+     WHERE m.is_delete=0 AND d.project_id=#{project_id} AND m.create_at LIKE CONCAT('%',#{date},'%')
+     GROUP BY is_fault
+    </select>
+
+    <select id="getMaintenanceByStatusRanking" resultType="java.util.Map">
+        SELECT  m.device_id,d.name,COUNT(*) as count FROM `account_maintenance`  m
+        INNER JOIN `account_device` d ON m.device_id=d.id
+        WHERE m.is_delete=0 AND d.project_id=#{project_id} AND m.status=2
+        AND m.create_at LIKE CONCAT('%',#{date},'%')
+        GROUP BY m.device_id
+        ORDER BY count DESC
+        LIMIT 0,10
+    </select>
+
+    <select id="getMaintenanceByContrast" resultType="java.util.Map">
+        SELECT COUNT(*) as `count`,substring(m.create_at,6,2) as `time`,m.`status`  FROM `account_maintenance` m
+        INNER JOIN `account_device` d ON m.device_id=d.id
+        WHERE m.is_delete=0 AND d.project_id=#{project_id}
+        AND m.create_at LIKE CONCAT('%',#{date},'%')
+		GROUP BY substring_index(create_at,'-',2),m.`status`
+    </select>
+
+</mapper>

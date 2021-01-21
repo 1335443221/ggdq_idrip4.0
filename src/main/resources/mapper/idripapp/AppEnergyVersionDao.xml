@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.sl.idripapp.dao.AppEnergyVersionDao">
+
+	<select id="query" resultType="java.util.HashMap">
+		SELECT
+		id,v.version,v.description,download_url,is_force,upload_at FROM
+		`app_energy_version` v
+		ORDER BY id DESC
+	</select>
+
+
+
+	<update id="update">
+		UPDATE `app_energy_version`
+		<set>
+			<if test="version != null">version=#{version},</if>
+			<if test="description != null">description=#{description},</if>
+			<if test="download_url != null">download_url=#{download_url},</if>
+			<if test="is_force != null">is_force=#{is_force},</if>
+			<if test="upload_at != null">upload_at=#{upload_at}</if>
+
+		</set>
+		where id=#{id}
+	</update>
+
+	<delete id="delete">
+		delete from `app_energy_version`
+		where id=#{id}
+	</delete>
+	<insert id="save">
+		insert into `app_energy_version`
+		(version,description,download_url,is_force,upload_at)
+		values
+		(
+		<choose>
+			<when test="version != null and version != ''">#{version},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="description != null and description != ''">#{description},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="download_url != null and download_url != ''">#{download_url},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="is_force != null and is_force != ''">#{is_force},</when>
+			<otherwise>'',</otherwise>
+		</choose>
+		<choose>
+			<when test="upload_at != null and upload_at != ''">#{upload_at}</when>
+			<otherwise>''</otherwise>
+		</choose>
+
+		)
+	</insert>
+
+
+
+	<select id="download_query" resultType="java.util.HashMap">
+		SELECT * FROM `app_download_url` a
+		where 1=1
+		<if test="project_id != null and project_id !=''">
+			and a.project_id=#{project_id}
+		</if>
+	</select>
+
+
+
+	<update id="download_update">
+		UPDATE `app_download_url`
+		<set>
+			<if test="project_id != null">project_id=#{project_id},</if>
+			<if test="qrcode_url != null">qrcode_url=#{qrcode_url},</if>
+			<if test="index_url != null">index_url=#{index_url},</if>
+			<if test="project_name != null">project_name=#{project_name}</if>
+		</set>
+		where id=#{id}
+	</update>
+
+	<delete id="download_delete">
+		delete from `app_download_url`
+		where id=#{id}
+	</delete>
+
+	<insert id="download_save">
+		insert into `app_download_url`
+		(project_id,qrcode_url,index_url,project_name)
+		values
+		(
+		#{project_id},
+		#{qrcode_url},
+		#{index_url},
+		#{project_name}
+		)
+	</insert>
+</mapper>
